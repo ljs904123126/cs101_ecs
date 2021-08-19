@@ -1,11 +1,14 @@
 package com.yoyoyo666.cs101.ecs.utils;
 
 import com.yoyoyo666.cs101.ecs.exception.ECSFileNotFoundException;
+import com.yoyoyo666.cs101.ecs.vm.VMCommandType;
 import org.apache.commons.lang3.StringUtils;
 
 import java.io.*;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 public class CodeUtils {
@@ -48,5 +51,28 @@ public class CodeUtils {
         }
         return "";
     }
+
+
+    private static Map<String, VMCommandType> cacheVMType = null;
+
+    static {
+        cacheVMType = new HashMap<>();
+        for (VMCommandType value : VMCommandType.values()) {
+            String symbol = value.getSymbol();
+            if (StringUtils.isEmpty(symbol)) {
+                continue;
+            }
+            for (String k : symbol.split(",")) {
+                cacheVMType.put(k, value);
+            }
+        }
+    }
+
+    public static VMCommandType getVMCommandType(String symbol) {
+
+        return cacheVMType.get(symbol);
+
+    }
+
 
 }

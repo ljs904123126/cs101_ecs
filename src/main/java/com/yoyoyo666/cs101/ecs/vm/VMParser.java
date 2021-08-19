@@ -40,7 +40,7 @@ public class VMParser {
     }
 
     public boolean hasMoreCommand() {
-        return false;
+        return !queue.isEmpty();
     }
 
     public void advance() {

@@ -1,9 +1,11 @@
 package com.yoyoyo666.cs101.ecs.utils;
 
-import com.sun.org.apache.bcel.internal.classfile.Code;
-import junit.framework.TestCase;
+import com.yoyoyo666.cs101.ecs.vm.VMCommandType;
 import org.apache.commons.io.FileUtils;
-import org.junit.*;
+import org.junit.AfterClass;
+import org.junit.Assert;
+import org.junit.BeforeClass;
+import org.junit.Test;
 
 import java.io.File;
 import java.io.IOException;
@@ -11,7 +13,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.UUID;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
 
 public class CodeUtilsTest {
 
@@ -46,9 +48,16 @@ public class CodeUtilsTest {
         assertEquals("", comments);
         normal = CodeUtils.commandTrim(normalOrg+commentsOrg);
         assertEquals(normal, normalOrg);
+    }
 
 
-
+    @Test
+    public void testGetVMCommandType(){
+        VMCommandType add = CodeUtils.getVMCommandType("add");
+        VMCommandType sub = CodeUtils.getVMCommandType("sub");
+        VMCommandType pop = CodeUtils.getVMCommandType("pop");
+        VMCommandType push = CodeUtils.getVMCommandType("push");
+//        ass
     }
 
     @BeforeClass
@@ -110,4 +119,6 @@ public class CodeUtilsTest {
             dataFile.delete();
         }
     }
+
+
 }
