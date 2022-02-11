@@ -103,6 +103,7 @@ public class AssParser {
 //                commandType = CommandType.L_COMMAND;
 //            }
             commandType = CommandType.A_COMMAND;
+            // If it is the A command symbol is the load value
             symbol = value;
 
         } else if (command.startsWith("(")) {

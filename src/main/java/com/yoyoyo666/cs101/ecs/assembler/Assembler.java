@@ -72,21 +72,27 @@ public class Assembler {
             String symbol = assParser.getSymbol();
             if (assParser.getCommandType() != CommandType.L_COMMAND) {
                 if (assParser.getCommandType() == CommandType.A_COMMAND) {
+                    //A指令 如果后面跟着的是数字 那么就将数据载入A寄存器
+                    // 如果后面是符号，则将符号分配地址载入A寄存器
                     if (!StringUtils.isNumeric(symbol)) {
+                        //不是数字 则是符号 那么载入地址
                         if (!assSymbol.contains(symbol)) {
                             System.out.println(symbol +  "--" + ramAddress);
+                            // allocate memory address
                             assSymbol.addEntry(symbol, ramAddress++);
                         }
+                        //get address
                         Integer address = assSymbol.getAddress(symbol);
                         String mc = assParser.getOrgCommand()
                                 .replace(symbol, address + "");
 //                        System.out.println(mc);
+                        //instruction
                         String hc = toBinary(address.intValue(), 16);
 //                        System.out.println(hc);
                         mList.add(mc);
                         hackList.add(hc);
                     } else {
-
+                        //数字
                         String mc = assParser.getOrgCommand();
 //                        System.out.println(mc);
                         String hc = toBinary(Integer.valueOf(assParser.getSymbol()), 16);
@@ -95,6 +101,7 @@ public class Assembler {
                         hackList.add(hc);
                     }
                 } else {
+                    //C指令
                     String b = "111"
                             + assCode.getComp(assParser.getComp())
                             + assCode.getDest(assParser.getDest())
