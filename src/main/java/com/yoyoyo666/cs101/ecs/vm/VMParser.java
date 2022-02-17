@@ -44,18 +44,33 @@ public class VMParser {
     }
 
     public void advance() {
+        setCurrentNull();
         if (queue.isEmpty()) {
-            setCurrentNull();
             return;
         }
-        String cmand = queue.poll();
-        this.currentCommandStr = cmand;
+        this.currentCommandStr = queue.poll();
+        String[] s = this.currentCommandStr.split(" ");
+        this.currentCommandType = VMCommandType.getCommandType(s[0]);
+        if (this.currentCommandType != VMCommandType.C_RETURN) {
+            if (this.currentCommandType == VMCommandType.C_ARITHMETIC) {
+                this.argStr1 = s[0];
+            } else {
+                this.argStr1 = s[1];
+            }
+        }
 
+
+        if (this.currentCommandType == VMCommandType.C_PUSH
+                || this.currentCommandType == VMCommandType.C_POP
+                || this.currentCommandType == VMCommandType.C_FUNCTION
+                || this.currentCommandType == VMCommandType.C_CALL) {
+            this.argStr2 = s[2];
+        }
     }
 
     public VMCommandType commandType() {
 
-        return null;
+        return this.currentCommandType;
     }
 
     public String arg1() {

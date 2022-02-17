@@ -39,7 +39,7 @@ public class CodeUtils {
                 StringUtils.isNotBlank(s) && !s.trim().startsWith("//")
         ).map(s ->
                 s.indexOf("//") > 0 ? s.substring(0, s.indexOf("//")) : s
-        ).collect(Collectors.toList());
+        ).map(s -> s.replace("\\s", " ")).collect(Collectors.toList());
     }
 
 

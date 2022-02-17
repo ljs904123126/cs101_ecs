@@ -1,7 +1,5 @@
 package com.yoyoyo666.cs101.ecs.vm;
 
-import java.util.Map;
-
 /**
  * push constant 10
  * pop local 0
@@ -30,38 +28,42 @@ import java.util.Map;
  * add
  */
 
+/**
+ * 算数命令
+ * 存储访问命令
+ * 流程控制命令
+ * 函数调用
+ */
 public enum VMCommandType {
 
-    C_ARITHMETIC("C_ARITHMETIC", 0,"add,sub"),
-    C_PUSH("C_PUSH", 1,"push"),
-    C_POP("C_POP", 2,"pop"),
-    C_LABEL("C_LABEL", 3,""),
-    C_GOTO("C_GOTO", 4,""),
-    C_IF("C_IF", 5,""),
-    C_FUNCTION("C_FUNCTION", 6,""),
-    C_RETURN("C_RETURN", 7,""),
-    C_CALL("C_CALL", 8,"");
+    C_ARITHMETIC("C_ARITHMETIC", 0, "add,sub"),
+    C_PUSH("C_PUSH", 1, "push"),
+    C_POP("C_POP", 2, "pop"),
+    C_LABEL("C_LABEL", 3, ""),
+    C_GOTO("C_GOTO", 4, ""),
+    C_IF("C_IF", 5, ""),
+    C_FUNCTION("C_FUNCTION", 6, ""),
+    C_RETURN("C_RETURN", 7, ""),
+    C_CALL("C_CALL", 8, "");
 
 
-    private String name;
-    private int value;
-    private String symbol;
+    private final String name;
+    private final int value;
+    private final String symbol;
 
 
-    VMCommandType(String name, int value,String symbol) {
+    VMCommandType(String name, int value, String symbol) {
         this.name = name;
         this.value = value;
         this.symbol = symbol;
     }
 
 
-
-
 //    private static
 
     @Override
     public String toString() {
-        return new StringBuffer("name:").append(this.name).append(" value:").append(value).toString();
+        return "name:" + this.name + " value:" + value;
     }
 
     public String getName() {
@@ -74,5 +76,14 @@ public enum VMCommandType {
 
     public String getSymbol() {
         return symbol;
+    }
+
+    public static VMCommandType getCommandType(String symbol) {
+        for (VMCommandType commandType : VMCommandType.values()) {
+            if (commandType.getSymbol().contains(symbol)) {
+                return commandType;
+            }
+        }
+        return null;
     }
 }

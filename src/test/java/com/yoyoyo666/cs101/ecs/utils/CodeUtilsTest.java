@@ -11,6 +11,7 @@ import java.io.File;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Objects;
 import java.util.UUID;
 
 import static org.junit.Assert.assertEquals;
@@ -22,8 +23,10 @@ public class CodeUtilsTest {
 
     @Test
     public void testGetCommandSetTrim() {
-        List<String> commandSetTrim = CodeUtils.getCommandSetTrim(dataFile.getPath());
-//        commandSetTrim.forEach(s -> System.out.println(s));
+        String path = Objects.requireNonNull(this.getClass().getClassLoader().getResource("07/MemoryAccess/BasicTest/BasicTest.vm")).getPath();
+        System.out.println(path);
+        List<String> commandSetTrim = CodeUtils.getCommandSetTrim(path);
+//        commandSetTrim.forEach(System.out::println);
         long count = commandSetTrim.stream().filter(s -> s.indexOf("//") > -1).count();
         Assert.assertEquals(count, 0);
         Assert.assertEquals(commandSetTrim.size(), 25);
