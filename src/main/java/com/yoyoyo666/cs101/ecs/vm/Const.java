@@ -24,5 +24,25 @@ public class Const {
     public static final int R14 = 14;
     public static final int R15 = 15;
 
+    //    # Segment names
+//    S_LCL        = 'local'
+//    S_ARG        = 'argument'
+//    S_THIS       = 'this'
+//    S_THAT       = 'that'
+//    S_PTR        = 'pointer'
+//    S_TEMP       = 'temp'
+//    S_CONST      = 'constant'
+//    S_STATIC     = 'static'
+//    S_REG        = 'reg'
+    public static final String S_LCL = "local";
+    public static final String S_ARG = "argument";
+    public static final String S_THIS = "this";
+    public static final String S_THAT = "that";
+    public static final String S_PTR = "pointer";
+    public static final String S_TEMP = "temp";
+    public static final String S_CONST = "constant";
+    public static final String S_STATIC = "static";
+    public static final String S_REG = "reg";
+
 
 }
