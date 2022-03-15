@@ -47,10 +47,28 @@ public class VMCodeWriter {
      */
 
 //    public
+    //push local argument this that
+
+    //静态数据加载到堆栈  cosntant
+    private void valToStack(String val) {
+        //A=val
+        writeACommand(val);
+        //D=A
+        writeCCommand("D", "A", null);
+        //*SP=D
+        compToStack("D");
+    }
+
+
+    //目标数据加载到堆栈
+    private void compToStack(String comp) {
+        loadSP();
+        writeCCommand("M", comp, null);
+    }
 
     /**
-     *  A = SP
-     *  A = &SP
+     * A = SP
+     * A = &SP
      */
     private void loadSP() {
         writeACommand("SP");

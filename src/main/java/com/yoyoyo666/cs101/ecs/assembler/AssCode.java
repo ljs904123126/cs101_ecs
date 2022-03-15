@@ -64,12 +64,19 @@ public class AssCode {
         destTab.put("AMD", "111");
 
         jumpTab.put("null", "000");
+        // >0
         jumpTab.put("JGT", "001");
+        // =0
         jumpTab.put("JEQ", "010");
+        // >=0
         jumpTab.put("JGE", "011");
+        // <0
         jumpTab.put("JLT", "100");
+        // !=0
         jumpTab.put("JNE", "101");
+        // <=0
         jumpTab.put("JLE", "110");
+        // jump
         jumpTab.put("JMP", "111");
 
     }

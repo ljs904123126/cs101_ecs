@@ -44,5 +44,11 @@ public class Const {
     public static final String S_STATIC = "static";
     public static final String S_REG = "reg";
 
+    //内存段分类
+    //常数 S_CONST 直接常数加载
+    //S_PTR  S_TEMP 固定地址
+    //S_STATIC
+    //S_LCL S_ARG S_THIS S_THAT 基地址
+
 
 }
