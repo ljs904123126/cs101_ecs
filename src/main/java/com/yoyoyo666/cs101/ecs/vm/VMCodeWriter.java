@@ -25,7 +25,48 @@ public class VMCodeWriter {
 
     }
 
-    public void writePushPop(String command, String segment, int index) {
+    /**
+     * @param command push pop
+     * @param segment
+     * @param index
+     */
+    public void writePushPop(VMCommandType command, String segment, int index) {
+
+        if (command != VMCommandType.C_PUSH && command != VMCommandType.C_POP) {
+            throw new RuntimeException("command must be push or pop");
+        }
+        SegmentType segmentType = SegmentType.getSegmentType(segment);
+        assert segmentType != null;
+        if (command == VMCommandType.C_PUSH) {
+            if (segmentType.isConstant()) {
+                pushValToStack(index + "");
+            }
+            if (segmentType.isBasic()) {
+                pushBasicToStack(segmentType, index);
+            }
+            if (segmentType.isStatic()) {
+
+            }
+        } else {
+
+        }
+
+
+    }
+
+    //this == S_LCL || this == S_ARG  || this == S_THIS || this == S_THAT;
+    private void pushBasicToStack(SegmentType segmentType, int index) {
+
+        writeACommand(index);
+        writeCCommand("D", "A", null);
+        writeACommand(segmentType.getKey());
+        //计算地址偏移量
+        writeCCommand("A", "M+D", null);
+        writeCCommand("D", "M", null);
+
+        loadSP();
+        writeCCommand("M", "D", null);
+        writeIncreaseSP();
 
     }
 
@@ -34,29 +75,16 @@ public class VMCodeWriter {
     }
 
 
-    /*
-    public static final String S_LCL = "local";
-    public static final String S_ARG = "argument";
-    public static final String S_THIS = "this";
-    public static final String S_THAT = "that";
-    public static final String S_PTR = "pointer";
-    public static final String S_TEMP = "temp";
-    public static final String S_CONST = "constant";
-    public static final String S_STATIC = "static";
-    public static final String S_REG = "reg";
-     */
-
-//    public
-    //push local argument this that
-
     //静态数据加载到堆栈  cosntant
-    private void valToStack(String val) {
+    private void pushValToStack(String val) {
         //A=val
         writeACommand(val);
         //D=A
         writeCCommand("D", "A", null);
         //*SP=D
         compToStack("D");
+        //SP++
+        writeIncreaseSP();
     }
 
 
@@ -92,6 +120,10 @@ public class VMCodeWriter {
     }
 
     private void writeACommand(String address) {
+        vmCommandList.add("@" + address);
+    }
+
+    private void writeACommand(int address) {
         vmCommandList.add("@" + address);
     }
 
