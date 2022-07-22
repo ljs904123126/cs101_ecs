@@ -21,53 +21,92 @@ public class VMCodeWriter {
         this.inputPath = inputPath;
     }
 
+    /**
+     * 计算
+     *
+     * @param command
+     */
     public void writeArithmetic(String command) {
 
     }
 
-    /**
-     * @param command push pop
-     * @param segment
-     * @param index
-     */
-    public void writePushPop(VMCommandType command, String segment, int index) {
 
-        if (command != VMCommandType.C_PUSH && command != VMCommandType.C_POP) {
-            throw new RuntimeException("command must be push or pop");
-        }
-        SegmentType segmentType = SegmentType.getSegmentType(segment);
-        assert segmentType != null;
-        if (command == VMCommandType.C_PUSH) {
-            if (segmentType.isConstant()) {
-                pushValToStack(index + "");
-            }
-            if (segmentType.isBasic()) {
-                pushBasicToStack(segmentType, index);
-            }
-            if (segmentType.isStatic()) {
+    public void writePushPop(String command, String segment, int index) {
 
+        VMCommandType commandType = VMCommandType.getCommandType(command);
+        if (VMCommandType.C_PUSH == commandType) {
+            VMSegmentType typeByVMCode = VMSegmentType.getTypeByVMCode(segment);
+
+            if (typeByVMCode.equals(VMSegmentType.S_ARG)
+                    || typeByVMCode.equals(VMSegmentType.S_LCL)
+                    || typeByVMCode.equals(VMSegmentType.S_THIS)
+                    || typeByVMCode.equals(VMSegmentType.S_THAT)
+            ) {
+                pushConstantSegment(index, typeByVMCode.getHackCode());
+                return;
             }
+            switch (typeByVMCode) {
+                case S_PTR:
+                    if (index == 0) {
+                        pushConstantSegment(0, VMSegmentType.S_THIS.getHackCode());
+                    } else if (index == 1) {
+                        pushConstantSegment(0, VMSegmentType.S_THAT.getHackCode());
+                    }
+                    break;
+                case S_TEMP:
+                    pushConstantSegment(index, "R5");
+                    break;
+                case S_CONST:
+                    writeACommand(String.valueOf(index));
+                    writeCCommand("D", "A");
+                    compToStack("D");
+                    writeIncreaseSP();
+                    break;
+                case S_STATIC:
+                    break;
+                case S_REG:
+                    break;
+                default:
+                    break;
+            }
+
         } else {
-
+            //todo pop
         }
-
 
     }
 
-    //this == S_LCL || this == S_ARG  || this == S_THIS || this == S_THAT;
-    private void pushBasicToStack(SegmentType segmentType, int index) {
+    /**
+     * 固定地址或者符号添加到栈中
+     *
+     * @param index
+     * @param segment
+     */
+    private void pushConstantSegment(int index, String segment) {
+        //A=@local
+        writeACommand(segment);
+        if (index == 0) {
+            writeCCommand("A", "M");
+        } else {
+            //D=M
+            writeCCommand("D", "M");
+            //@index
+            writeACommand(index + "");
+            //A=A+D
+            writeCCommand("A", "A+D");
+        }
 
-        writeACommand(index);
-        writeCCommand("D", "A", null);
-        writeACommand(segmentType.getKey());
-        //计算地址偏移量
-        writeCCommand("A", "M+D", null);
-        writeCCommand("D", "M", null);
-
-        loadSP();
-        writeCCommand("M", "D", null);
+        //D=M
+        writeCCommand("D", "M");
+        //
+        //@sp
+        //A=M
+        //M=D
+        compToStack("D");
+        //sp++
+        //@sp
+        //M=M+1
         writeIncreaseSP();
-
     }
 
     public void close() {
@@ -76,19 +115,17 @@ public class VMCodeWriter {
 
 
     //静态数据加载到堆栈  cosntant
-    private void pushValToStack(String val) {
+    private void valToStack(String val) {
         //A=val
         writeACommand(val);
         //D=A
         writeCCommand("D", "A", null);
         //*SP=D
         compToStack("D");
-        //SP++
-        writeIncreaseSP();
     }
 
 
-    //目标数据加载到堆栈
+    //目标数据加载到堆栈 D或者其他
     private void compToStack(String comp) {
         loadSP();
         writeCCommand("M", comp, null);
@@ -123,8 +160,8 @@ public class VMCodeWriter {
         vmCommandList.add("@" + address);
     }
 
-    private void writeACommand(int address) {
-        vmCommandList.add("@" + address);
+    private void writeCCommand(String dest, String comp) {
+        this.writeCCommand(dest, comp, null);
     }
 
     private void writeCCommand(String dest, String comp, String jump) {

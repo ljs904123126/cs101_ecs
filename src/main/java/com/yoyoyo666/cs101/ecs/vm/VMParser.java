@@ -73,11 +73,20 @@ public class VMParser {
         return this.currentCommandType;
     }
 
+    /**
+     * 返回当前命令的第一个参数，如果当前命令类型为C_ARITHMETIC，则返回名命令本身
+     * 当前命令为C_RETURN 则不应该调用本程序
+     * @return
+     */
     public String arg1() {
 
         return argStr1;
     }
 
+    /**
+     * 返回命令的第二个参数，仅 命令类型为 C_PUSH C_POP C_FUNCTION C_CALL 可用
+     * @return
+     */
     public String arg2() {
 
         return argStr2;
