@@ -9,6 +9,7 @@ public class VMCodeWriter {
 
     private String outPath;
     private String inputPath;
+    private String fileName;
 
     private List<String> vmCommandList;
 
@@ -63,15 +64,44 @@ public class VMCodeWriter {
                     writeIncreaseSP();
                     break;
                 case S_STATIC:
-                    break;
-                case S_REG:
+                    writeACommand(fileName + "." + index);
+                    writeCCommand("D", "M");
+                    compToStack("D");
+                    writeIncreaseSP();
                     break;
                 default:
-                    break;
+                    throw new RuntimeException("unkwon segment");
             }
-
         } else {
-            //todo pop
+            VMSegmentType typeByVMCode = VMSegmentType.getTypeByVMCode(segment);
+
+            if (typeByVMCode.equals(VMSegmentType.S_ARG)
+                    || typeByVMCode.equals(VMSegmentType.S_LCL)
+                    || typeByVMCode.equals(VMSegmentType.S_THIS)
+                    || typeByVMCode.equals(VMSegmentType.S_THAT)
+            ) {
+
+                //计算目标地址
+                //@type
+                //AD=M
+                //@index
+                //D=A+D
+
+                //缓存目标地址
+                //@R13
+                //M=D
+
+                //获取栈顶值
+                //@SP
+                //AM=M-1
+                //D=M
+
+                //@R13
+                //A=M
+                //M=D
+
+                return;
+            }
         }
 
     }
