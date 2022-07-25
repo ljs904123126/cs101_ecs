@@ -10,7 +10,6 @@ public class AssCode {
     private Map<String, String> jumpTab = null;
     private Map<String, String> preTab = null;
 
-
     public AssCode() {
         compTab = new HashMap<String, String>();
         destTab = new HashMap<String, String>();

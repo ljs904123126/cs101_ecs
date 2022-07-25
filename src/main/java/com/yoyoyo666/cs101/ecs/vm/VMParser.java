@@ -2,6 +2,8 @@ package com.yoyoyo666.cs101.ecs.vm;
 
 import com.yoyoyo666.cs101.ecs.utils.CodeUtils;
 
+import java.io.File;
+import java.io.FileNotFoundException;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Queue;
@@ -15,10 +17,16 @@ public class VMParser {
     private String argStr2;
     private Queue<String> queue;
     private String currentCommandStr;
+    private String fileName;
 
 
     public VMParser(String filePath) {
         this.filePath = filePath;
+        File f = new File(filePath);
+        if (!f.exists()) {
+            throw new RuntimeException(new FileNotFoundException(filePath));
+        }
+        this.fileName = f.getName().replace(".vm", "");
         commands = CodeUtils.getCommandSetTrim(filePath);
         setQueue();
     }
@@ -76,6 +84,7 @@ public class VMParser {
     /**
      * 返回当前命令的第一个参数，如果当前命令类型为C_ARITHMETIC，则返回名命令本身
      * 当前命令为C_RETURN 则不应该调用本程序
+     *
      * @return
      */
     public String arg1() {
@@ -85,6 +94,7 @@ public class VMParser {
 
     /**
      * 返回命令的第二个参数，仅 命令类型为 C_PUSH C_POP C_FUNCTION C_CALL 可用
+     *
      * @return
      */
     public String arg2() {
@@ -99,4 +109,12 @@ public class VMParser {
     public String getCurrentCommandStr() {
         return currentCommandStr;
     }
+
+
+    public String getFileName() {
+        return fileName;
+    }
 }
+
+
+

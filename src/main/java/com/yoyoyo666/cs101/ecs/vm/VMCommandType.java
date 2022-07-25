@@ -36,7 +36,7 @@ package com.yoyoyo666.cs101.ecs.vm;
  */
 public enum VMCommandType {
 
-    C_ARITHMETIC("C_ARITHMETIC", 0, "add,sub"),
+    C_ARITHMETIC("C_ARITHMETIC", 0, "add, sub, neg, eq, gt, lt, and, or, not"),
     C_PUSH("C_PUSH", 1, "push"),
     C_POP("C_POP", 2, "pop"),
     C_LABEL("C_LABEL", 3, ""),
