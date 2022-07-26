@@ -46,14 +46,14 @@ public class VMCodeWriter {
 //                @SP
 //                AM=M-1
 //                D=M
-                stactTocomp("D");
+                stackToComp("D");
                 //A=A-1
                 writeCCommand("A", "A-1");
                 //M=M+D
                 writeCCommand("M", "M+D");
                 break;
             case SUB:
-                stactTocomp("D");
+                stackToComp("D");
                 writeCCommand("A", "A-1");
                 writeCCommand("M", "M-D");
                 break;
@@ -63,7 +63,7 @@ public class VMCodeWriter {
                 writeCCommand("M", "-M");
                 break;
             case OR:
-                stactTocomp("D");
+                stackToComp("D");
                 writeCCommand("A", "A-1");
                 writeCCommand("M", "M|D");
                 break;
@@ -73,7 +73,7 @@ public class VMCodeWriter {
                 writeCCommand("M", "!M");
                 break;
             case AND:
-                stactTocomp("D");
+                stackToComp("D");
                 writeCCommand("A", "A-1");
                 writeCCommand("M", "M&D");
                 break;
@@ -178,27 +178,34 @@ public class VMCodeWriter {
             }
             switch (typeByVMCode) {
                 case S_PTR:
+                    String seg = "";
                     if (_index == 0) {
-                        pushConstantSegment("0", VMSegmentType.S_THIS.getHackCode());
+                        seg = VMSegmentType.S_THIS.getHackCode();
+//                        pushConstantSegment("0", VMSegmentType.S_THIS.getHackCode());
                     } else if (_index == 1) {
-                        pushConstantSegment("0", VMSegmentType.S_THAT.getHackCode());
+                        seg = VMSegmentType.S_THAT.getHackCode();
+//                        pushConstantSegment("0", VMSegmentType.S_THAT.getHackCode());
                     }
+                    writeACommand(seg);
+                    writeCCommand("D", "M");
+                    compToStack("D");
                     break;
                 case S_TEMP:
-                    //todo fix
-                    pushConstantSegment(index, "R5");
+                    writeACommand(String.valueOf(5 + _index));
+                    writeCCommand("D", "M");
+                    loadSP();
+                    writeCCommand("M", "D");
+                    writeIncreaseSP();
                     break;
                 case S_CONST:
                     writeACommand(String.valueOf(index));
                     writeCCommand("D", "A");
                     compToStack("D");
-                    writeIncreaseSP();
                     break;
                 case S_STATIC:
                     writeACommand(fileName + "." + index);
                     writeCCommand("D", "M");
                     compToStack("D");
-                    writeIncreaseSP();
                     break;
                 default:
                     throw new RuntimeException("unkwon segment");
@@ -215,20 +222,25 @@ public class VMCodeWriter {
             }
             switch (typeByVMCode) {
                 case S_PTR:
+                    String seg = "";
                     if (_index == 0) {
-                        popConstantSegment("0", VMSegmentType.S_THIS.getHackCode());
+                        seg = VMSegmentType.S_THIS.getHackCode();
                     } else if (_index == 1) {
-                        popConstantSegment("0", VMSegmentType.S_THAT.getHackCode());
+                        seg = VMSegmentType.S_THAT.getHackCode();
                     }
+                    stackToComp("D");
+                    writeACommand(seg);
+                    writeCCommand("M", "D");
                     break;
                 case S_TEMP:
-                    //todo fix
-                    popConstantSegment(index, VMSegmentType.S_R5.getHackCode());
+                    stackToComp("D");
+                    writeACommand(String.valueOf(_index + 5));
+                    writeCCommand("M", "D");
                     break;
                 case S_CONST:
                     throw new RuntimeException("can't pop constant");
                 case S_STATIC:
-                    stactTocomp("D");
+                    stackToComp("D");
                     writeACommand(fileName + "." + index);
                     writeCCommand("M", "D");
                     break;
@@ -258,7 +270,7 @@ public class VMCodeWriter {
         //@SP
         //AM=M-1
         //D=M
-        stactTocomp("D");
+        stackToComp("D");
         //@R13
         //A=M
         //M=D
@@ -294,30 +306,19 @@ public class VMCodeWriter {
         //@sp
         //A=M
         //M=D
-        compToStack("D");
         //sp++
         //@sp
         //M=M+1
-        writeIncreaseSP();
+        compToStack("D");
+
     }
 
     public void close() {
         try {
-            FileUtils.writeLines(new File(outPath),hackCodeList);
+            FileUtils.writeLines(new File(outPath), hackCodeList);
         } catch (IOException e) {
             e.printStackTrace();
         }
-    }
-
-
-    //静态数据加载到堆栈  cosntant
-    private void valToStack(String val) {
-        //A=val
-        writeACommand(val);
-        //D=A
-        writeCCommand("D", "A", null);
-        //*SP=D
-        compToStack("D");
     }
 
 
@@ -325,10 +326,11 @@ public class VMCodeWriter {
     private void compToStack(String comp) {
         loadSP();
         writeCCommand("M", comp, null);
+        writeIncreaseSP();
     }
 
     //取出栈顶数据且SP--
-    private void stactTocomp(String comp) {
+    private void stackToComp(String comp) {
         //@SP
         //AM=M-1
         //D=M
