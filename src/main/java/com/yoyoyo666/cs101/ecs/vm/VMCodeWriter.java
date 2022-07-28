@@ -13,7 +13,7 @@ public class VMCodeWriter {
     private String outPath;
     private String inputPath;
     private String fileName;
-    private VMParser vmParser;
+    protected VMParser vmParser;
 
     private int symbolIndex = 0;
 
@@ -36,9 +36,9 @@ public class VMCodeWriter {
     /**
      * 计算
      *
-     * @param command
+     * @param command 命令名称
      */
-    public void writeArithmetic(String command) {
+    protected void writeArithmetic(String command) {
 
         VMArithmeticType typeByVMCode = VMArithmeticType.getTypeByVMCode(command);
         switch (typeByVMCode) {
@@ -98,7 +98,7 @@ public class VMCodeWriter {
      *
      * @param operator 比较运算符
      */
-    private void compareArithmetic(String operator) {
+    protected void compareArithmetic(String operator) {
         String uniqueSymbol = getUniqueSymbol();
         String trueSymbol = "TURE" + uniqueSymbol;
         String endSymbol = "END" + uniqueSymbol;
@@ -162,8 +162,8 @@ public class VMCodeWriter {
         return sb.toUpperCase();
     }
 
-    public void writePushPop(VMCommandType command, String segment, String index) {
-        int _index = Integer.valueOf(index);
+    protected void writePushPop(VMCommandType command, String segment, String index) {
+        int _index = Integer.parseInt(index);
 //        VMCommandType commandType = VMCommandType.getCommandType(command);
         if (VMCommandType.C_PUSH == command) {
             VMSegmentType typeByVMCode = VMSegmentType.getTypeByVMCode(segment);
@@ -198,7 +198,7 @@ public class VMCodeWriter {
                     writeIncreaseSP();
                     break;
                 case S_CONST:
-                    writeACommand(String.valueOf(index));
+                    writeACommand(index);
                     writeCCommand("D", "A");
                     compToStack("D");
                     break;
@@ -251,7 +251,7 @@ public class VMCodeWriter {
 
     }
 
-    private void popConstantSegment(String index, String segment) {
+    protected void popConstantSegment(String index, String segment) {
         //计算目标地址
         //@type
         //AD=M
@@ -282,13 +282,13 @@ public class VMCodeWriter {
     /**
      * 固定地址或者符号添加到栈中
      *
-     * @param index
-     * @param segment
+     * @param index 虚拟段偏移地址
+     * @param segment 虚拟段
      */
     private void pushConstantSegment(String index, String segment) {
         //A=@local
         writeACommand(segment);
-        int _index = Integer.valueOf(index);
+        int _index = Integer.parseInt(index);
         if (_index == 0) {
             writeCCommand("A", "M");
         } else {
@@ -313,7 +313,7 @@ public class VMCodeWriter {
 
     }
 
-    public void close() {
+    protected void close() {
         try {
             FileUtils.writeLines(new File(outPath), hackCodeList);
         } catch (IOException e) {
@@ -323,14 +323,14 @@ public class VMCodeWriter {
 
 
     //目标数据加载到堆栈 D或者其他
-    private void compToStack(String comp) {
+    protected void compToStack(String comp) {
         loadSP();
         writeCCommand("M", comp, null);
         writeIncreaseSP();
     }
 
     //取出栈顶数据且SP--
-    private void stackToComp(String comp) {
+    protected void stackToComp(String comp) {
         //@SP
         //AM=M-1
         //D=M
@@ -344,7 +344,7 @@ public class VMCodeWriter {
      * A = SP
      * A = &SP
      */
-    private void loadSP() {
+    protected void loadSP() {
         writeACommand(VMSegmentType.S_SP.getHackCode());
         writeCCommand("A", "M", null);
     }
@@ -352,7 +352,7 @@ public class VMCodeWriter {
     /**
      * SP++
      */
-    private void writeIncreaseSP() {
+    protected void writeIncreaseSP() {
         writeACommand("SP");
         writeCCommand("M", "M+1", null);
     }
@@ -360,20 +360,20 @@ public class VMCodeWriter {
     /**
      * SP--
      */
-    private void writeDecreaseSP() {
+    protected void writeDecreaseSP() {
         writeACommand("SP");
         writeCCommand("M", "M-1", "");
     }
 
-    private void writeACommand(String address) {
+    protected void writeACommand(String address) {
         hackCodeList.add("@" + address);
     }
 
-    private void writeCCommand(String dest, String comp) {
+    protected void writeCCommand(String dest, String comp) {
         this.writeCCommand(dest, comp, null);
     }
 
-    private void writeCCommand(String dest, String comp, String jump) {
+    protected void writeCCommand(String dest, String comp, String jump) {
         String rs = "";
         if (StringUtils.isNotBlank(dest)) {
             rs += dest + "=";
