@@ -89,7 +89,7 @@ public class VMParser {
      */
     public String arg1() {
 
-        return argStr1;
+        return argStr1 == null ? null : argStr1.trim();
     }
 
     /**
@@ -99,7 +99,7 @@ public class VMParser {
      */
     public String arg2() {
 
-        return argStr2;
+        return argStr2 == null ? null : argStr2.trim();
     }
 
     public VMCommandType getCurrentCommandType() {

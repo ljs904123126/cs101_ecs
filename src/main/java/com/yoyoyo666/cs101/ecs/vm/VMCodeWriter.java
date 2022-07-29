@@ -156,7 +156,7 @@ public class VMCodeWriter {
         hackCodeList.add("(" + endSymbol + ")");
     }
 
-    private String getUniqueSymbol() {
+    protected String getUniqueSymbol() {
         String sb = "_" + this.fileName + "_" + symbolIndex;
         symbolIndex++;
         return sb.toUpperCase();
@@ -387,6 +387,13 @@ public class VMCodeWriter {
         hackCodeList.add(rs);
     }
 
+    public String getFileName() {
+        return fileName;
+    }
+
+    public List<String> getHackCodeList() {
+        return hackCodeList;
+    }
 
     public void start() {
         while (vmParser.hasMoreCommand()) {
@@ -421,6 +428,7 @@ public class VMCodeWriter {
         }
         close();
     }
+
 
 }
 
