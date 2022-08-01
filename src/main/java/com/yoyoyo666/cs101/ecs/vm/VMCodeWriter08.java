@@ -47,6 +47,12 @@ public class VMCodeWriter08 extends VMCodeWriter {
     }
 
     protected void writeInit() {
+        writeACommand("256");
+        writeCCommand("D", "A");
+        writeACommand(VMSegmentType.S_SP.getHackCode());
+        writeCCommand("M", "D");
+        wirteComment("call Sys.init 0");
+        writeCall("Sys.init", 0);
     }
 
 
@@ -97,7 +103,7 @@ public class VMCodeWriter08 extends VMCodeWriter {
 
         //reset arg pointer *arg=sp-m-5
         writeACommand(VMSegmentType.S_SP.getHackCode());
-        writeCCommand("D", "A");
+        writeCCommand("D", "M");
         writeACommand(String.valueOf(numArgs));
         writeCCommand("D", "D-A");
         writeACommand("5");
@@ -127,7 +133,8 @@ public class VMCodeWriter08 extends VMCodeWriter {
 
         //RET = *(FRAME-5) 将返回地址放入临时变量R14
         writeACommand("5");
-        writeCCommand("D", "D-A");
+        writeCCommand("A", "D-A");
+        writeCCommand("D", "M");
         writeACommand(VMSegmentType.S_R14.getHackCode());
         writeCCommand("M", "D");
 
@@ -176,15 +183,19 @@ public class VMCodeWriter08 extends VMCodeWriter {
     protected void writeFunction(String functionName, int numLocals) {
         functionName = getFunctionName(functionName);
         writeHackLabel(functionName);
-        writeACommand("0");
-        writeCCommand("D", "A");
-        for (int locals = numLocals; locals > 0; locals--) {
-            compToStack("D");
+        if(numLocals > 0){
+            writeACommand("0");
+            writeCCommand("D", "A");
+            for (int locals = numLocals; locals > 0; locals--) {
+                compToStack("D");
+            }
         }
+
     }
 
     private String getFunctionName(String functionName) {
-        return this.getFileName() + "_funcName_" + functionName;
+//        return this.getFileName() + "_funcName_" + functionName;
+        return functionName;
     }
 
     private void writeHackLabel(String functionName) {
@@ -205,6 +216,11 @@ public class VMCodeWriter08 extends VMCodeWriter {
 
     @Override
     public void start() {
+
+        if (vmParser.getDirectory()) {
+            writeInit();
+        }
+
         while (vmParser.hasMoreCommand()) {
             vmParser.advance();
             VMCommandType currentCommandType = vmParser.getCurrentCommandType();
@@ -213,30 +229,39 @@ public class VMCodeWriter08 extends VMCodeWriter {
             }
             switch (currentCommandType) {
                 case C_ARITHMETIC:
+                    wirteComment(vmParser.getCurrentCommandStr());
                     writeArithmetic(vmParser.arg1());
                     break;
                 case C_PUSH:
+                    wirteComment(vmParser.getCurrentCommandStr());
                     writePushPop(VMCommandType.C_PUSH, vmParser.arg1(), vmParser.arg2());
                     break;
                 case C_POP:
+                    wirteComment(vmParser.getCurrentCommandStr());
                     writePushPop(VMCommandType.C_POP, vmParser.arg1(), vmParser.arg2());
                     break;
                 case C_LABEL:
+                    wirteComment(vmParser.getCurrentCommandStr());
                     writeLabel(vmParser.arg1());
                     break;
                 case C_GOTO:
+                    wirteComment(vmParser.getCurrentCommandStr());
                     writeGoto(vmParser.arg1());
                     break;
                 case C_IF:
+                    wirteComment(vmParser.getCurrentCommandStr());
                     writeIf(vmParser.arg1());
                     break;
                 case C_FUNCTION:
+                    wirteComment(vmParser.getCurrentCommandStr());
                     writeFunction(vmParser.arg1(), Integer.parseInt(vmParser.arg2()));
                     break;
                 case C_RETURN:
+                    wirteComment(vmParser.getCurrentCommandStr());
                     writeReturn();
                     break;
                 case C_CALL:
+                    wirteComment(vmParser.getCurrentCommandStr());
                     writeCall(vmParser.arg1(), Integer.parseInt(vmParser.arg2()));
                     break;
             }

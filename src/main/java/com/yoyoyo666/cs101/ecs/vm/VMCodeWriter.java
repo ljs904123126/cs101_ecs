@@ -15,6 +15,7 @@ public class VMCodeWriter {
     private String fileName;
     protected VMParser vmParser;
 
+
     private int symbolIndex = 0;
 
     private List<String> hackCodeList;
@@ -32,6 +33,10 @@ public class VMCodeWriter {
         symbolIndex = 0;
     }
 
+
+    protected void wirteComment(String comment) {
+        hackCodeList.add("//" + comment);
+    }
 
     /**
      * 计算
@@ -282,7 +287,7 @@ public class VMCodeWriter {
     /**
      * 固定地址或者符号添加到栈中
      *
-     * @param index 虚拟段偏移地址
+     * @param index   虚拟段偏移地址
      * @param segment 虚拟段
      */
     private void pushConstantSegment(String index, String segment) {

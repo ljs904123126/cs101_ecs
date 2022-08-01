@@ -1,9 +1,11 @@
 package com.yoyoyo666.cs101.ecs.vm;
 
 import com.yoyoyo666.cs101.ecs.utils.CodeUtils;
+import org.apache.commons.io.filefilter.SuffixFileFilter;
 
 import java.io.File;
 import java.io.FileNotFoundException;
+import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Queue;
@@ -18,7 +20,7 @@ public class VMParser {
     private Queue<String> queue;
     private String currentCommandStr;
     private String fileName;
-
+    private Boolean isDirectory = false;
 
     public VMParser(String filePath) {
         this.filePath = filePath;
@@ -26,9 +28,27 @@ public class VMParser {
         if (!f.exists()) {
             throw new RuntimeException(new FileNotFoundException(filePath));
         }
-        this.fileName = f.getName().replace(".vm", "");
-        commands = CodeUtils.getCommandSetTrim(filePath);
-        setQueue();
+
+        if (f.isDirectory()) {
+            this.fileName = f.getName();
+            this.isDirectory = true;
+            commands = new ArrayList<>();
+            String[] list = f.list(new SuffixFileFilter(".vm"));
+            for (String s : list) {
+                List<String> commandSetTrim = CodeUtils.getCommandSetTrim(filePath + File.separator + s);
+                commands.addAll(commandSetTrim);
+            }
+            if (commands.isEmpty()) {
+                throw new RuntimeException(new FileNotFoundException(filePath));
+            }
+            setQueue();
+        } else {
+            this.fileName = f.getName().replace(".vm", "");
+            commands = CodeUtils.getCommandSetTrim(filePath);
+            setQueue();
+        }
+
+
     }
 
     public VMParser(List<String> commands) {
@@ -113,6 +133,10 @@ public class VMParser {
 
     public String getFileName() {
         return fileName;
+    }
+
+    public Boolean getDirectory() {
+        return isDirectory;
     }
 }
 
