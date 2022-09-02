@@ -183,6 +183,7 @@ public class VMCodeWriter {
             }
             switch (typeByVMCode) {
                 case S_PTR:
+                    // 将this that的地址压入栈中
                     String seg = "";
                     if (_index == 0) {
                         seg = VMSegmentType.S_THIS.getHackCode();
