@@ -40,4 +40,12 @@ public enum KeyWordTypeEnum {
     public static KeyWordTypeEnum get(String key) {
         return Arrays.stream(KeyWordTypeEnum.values()).filter(e -> e.getKey().equals(key)).findAny().orElse(null);
     }
+
+
+    public boolean equalsKey(String key) {
+        if (null == key || key.trim().length() == 0) {
+            return false;
+        }
+        return key.equals(this.key);
+    }
 }

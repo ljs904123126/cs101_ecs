@@ -18,6 +18,7 @@ public class JackTokenizer {
     private int currentLinePointer = 0;
     private Tokenizer preToken;
     private Tokenizer currentToken;
+    private Tokenizer nextToken;
     private File inputFile;
 
     // 单行注释 注释形式 1:// 2:/* */ 3:/** */
@@ -27,6 +28,10 @@ public class JackTokenizer {
 
     private static Pattern integerConstPattern = Pattern.compile("^\\d+$");
     private static Pattern stringConstPattern = Pattern.compile("^\".+\"$");
+
+    public String getInputFilePath() {
+        return inputFile.getPath();
+    }
 
     public void constructor(File inputFile) {
         this.inputFile = inputFile;
@@ -146,6 +151,10 @@ public class JackTokenizer {
         }
         preToken = currentToken;
         currentToken = tokens.poll();
+        nextToken = null;
+        if (!tokens.isEmpty()) {
+            nextToken = tokens.get(0);
+        }
     }
 
     public TokenTypeEnum tokenType() {
@@ -181,6 +190,13 @@ public class JackTokenizer {
         return currentToken;
     }
 
+    public Tokenizer getPreToken() {
+        return preToken;
+    }
+
+    public Tokenizer getNextToken() {
+        return nextToken;
+    }
 
     @Override
     public String toString() {
@@ -257,10 +273,5 @@ public class JackTokenizer {
         }
     }
 
-    public static void main(String[] args) {
-
-        System.out.println(stringConstPattern.matcher("\"00000\"").matches());
-
-    }
 
 }
