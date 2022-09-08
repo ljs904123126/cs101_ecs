@@ -2,7 +2,7 @@ package com.yoyoyo666.cs101.ecs.jack;
 
 import java.util.Arrays;
 
-public enum KeyWordTypeEnum {
+public enum KeyWordType {
 
     CLASS("class"),
     CONSTRUCTOR("constructor"),
@@ -28,7 +28,7 @@ public enum KeyWordTypeEnum {
 
     private String key;
 
-    KeyWordTypeEnum(String key) {
+    KeyWordType(String key) {
         this.key = key;
     }
 
@@ -37,8 +37,8 @@ public enum KeyWordTypeEnum {
         return key;
     }
 
-    public static KeyWordTypeEnum get(String key) {
-        return Arrays.stream(KeyWordTypeEnum.values()).filter(e -> e.getKey().equals(key)).findAny().orElse(null);
+    public static KeyWordType get(String key) {
+        return Arrays.stream(KeyWordType.values()).filter(e -> e.getKey().equals(key)).findAny().orElse(null);
     }
 
 

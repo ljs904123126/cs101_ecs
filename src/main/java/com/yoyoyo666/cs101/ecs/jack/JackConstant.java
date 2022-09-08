@@ -10,4 +10,16 @@ public class JackConstant {
     );
 
 
+    public static final List<String> OP_SYMBOL = Arrays.asList(
+            "+", "-", "*", "/", "&", "|", "<", ">", "="
+    );
+
+    public static final List<String> UNARYOP_SYMBOL = Arrays.asList(
+            "-", "~"
+    );
+
+    public static final List<String> KEYWORD_CONSTANT = Arrays.asList(
+            "true", "false", "null", "this"
+    );
+
 }

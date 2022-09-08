@@ -1,17 +1,17 @@
 package com.yoyoyo666.cs101.ecs.jack;
 
-public enum TokenTypeEnum {
+public enum TokenType {
 
     KEYWORD("keyword"),
     SYMBOL("symbol"),
     IDENTIFIER("identifier"),
-    INT_CONST("int_const"),
-    STRING_CONST("string_const")
+    INT_CONST("integerConstant"),
+    STRING_CONST("stringConstant")
     ;
 
     private String keyWord;
 
-    TokenTypeEnum(String keyWord) {
+    TokenType(String keyWord) {
         this.keyWord = keyWord;
     }
 

@@ -2,6 +2,7 @@ package com.yoyoyo666.cs101.ecs.jack;
 
 
 import java.io.File;
+import java.util.stream.Collectors;
 
 /**
  * 结构 语句 表达式
@@ -9,6 +10,9 @@ import java.io.File;
 public class CompilationEngine {
 
     private JackTokenizer jackTokenizer;
+
+    private final String typeExpect = "int | boolean | char | className";
+    private final String statementExpect = "let | if | while | do | return";
 
     private StringBuffer out;
 
@@ -48,92 +52,427 @@ public class CompilationEngine {
      */
     public void compileClass() {
         JackTokenizer.Tokenizer tokenizer = this.advanceAndGet();
-        if (KeyWordTypeEnum.CLASS.equalsKey(tokenizer.getToken())) {
-            append(getStartTag(KeyWordTypeEnum.CLASS.getKey()));
-            append(getTerminals(tokenizer.getType().getKeyWord(), tokenizer.getToken()));
+        if (KeyWordType.CLASS.equalsKey(tokenizer.getToken())) {
+            append(getStartTag(KeyWordType.CLASS.getKey()));
+            appendTerminals(tokenizer);
             tokenizer = this.advanceAndGet();
-            if (tokenizer.getType() == TokenTypeEnum.IDENTIFIER) {
-                append(getTerminals(tokenizer.getType().getKeyWord(), tokenizer.getToken()));
+            if (tokenizer.getType() == TokenType.IDENTIFIER) {
+                appendTerminals(tokenizer);
                 tokenizer = this.advanceAndGet();
                 if ("{".equals(tokenizer.getToken())) {
+                    appendTerminals(tokenizer);
+                    while (true) {
+                        JackTokenizer.Tokenizer nextToken = jackTokenizer.getNextToken();
+                        if ("}".equals(nextToken.getToken())) {
+                            tokenizer = this.advanceAndGet();
+                            appendTerminals(tokenizer);
+                            break;
+                        }
+                        KeyWordType keyWordType = KeyWordType.get(nextToken.getToken());
+                        switch (keyWordType) {
+                            case FIELD:
+                            case STATIC:
+                                compileClassVarDec();
+                                break;
+                            case CONSTRUCTOR:
+                            case FUNCTION:
+                            case METHOD:
+                                compileSubroutine();
+                                break;
+                            default:
+                                throwError(nextToken, "static | field | constructor | method");
+                        }
 
+                    }
                 } else {
                     throwError(tokenizer, "{");
                 }
             } else {
-                throwError(tokenizer, TokenTypeEnum.IDENTIFIER.getKeyWord());
+                throwError(tokenizer, TokenType.IDENTIFIER.getKeyWord());
             }
-            append(getEndTag(KeyWordTypeEnum.CLASS.getKey()));
+            append(getEndTag(KeyWordType.CLASS.getKey()));
         } else {
-            throwError(tokenizer, KeyWordTypeEnum.CLASS.getKey());
+            throwError(tokenizer, KeyWordType.CLASS.getKey());
         }
     }
 
 
     /**
+     * ---  type int | boolean | char | className
      * (static|field) type varName (, varName)* ;
      */
     public void compileClassVarDec() {
+        append(getStartTag("classVarDec"));
+
+        JackTokenizer.Tokenizer tokenizer = advanceAndGet();
+        KeyWordType keyWordType = KeyWordType.get(tokenizer.getToken());
+        if (KeyWordType.STATIC != keyWordType && KeyWordType.FIELD != keyWordType) {
+            throwError(tokenizer, "static | field");
+        }
+        appendTerminals(tokenizer);
+
+        tokenizer = advanceAndGet();
+        if (!isTypeToken(tokenizer)) {
+            throwError(tokenizer, typeExpect);
+        }
+        appendTerminals(tokenizer);
+
+        tokenizer = advanceAndGet();
+        appendIdentifier(tokenizer);
+
+        while (true) {
+            tokenizer = advanceAndGet();
+            String token = tokenizer.getToken();
+            if (";".equals(token)) {
+                append(getTerminals(TokenType.SYMBOL.getKeyWord(), ";"));
+                break;
+            }
+            if (!",".equals(token)) {
+                throwError(tokenizer, ",");
+            }
+            append(getTerminals(TokenType.SYMBOL.getKeyWord(), ","));
+
+            tokenizer = advanceAndGet();
+            appendIdentifier(tokenizer);
+        }
+        append(getEndTag("classVarDec"));
     }
 
     /**
      * (constructor|function|method) (type|void) subroutineName '(' parameterList ')' { varDec* statements }
      */
+
     public void compileSubroutine() {
+        append(getStartTag("subroutineDec"));
+
+        //(constructor|function|method)
+        JackTokenizer.Tokenizer tokenizer = advanceAndGet();
+        if (!isMethodToken(tokenizer)) {
+            throwError(tokenizer, "method | constructor | function");
+        }
+        appendTerminals(tokenizer);
+
+        // (type|void)
+        tokenizer = advanceAndGet();
+        if (!isTypeToken(tokenizer) || !tokenizer.getToken().equals("void")) {
+            throwError(tokenizer, typeExpect + " | void");
+        }
+        appendTerminals(tokenizer);
+
+        //subroutineName
+        tokenizer = advanceAndGet();
+        appendIdentifier(tokenizer);
+
+        //'('
+        tokenizer = advanceAndGet();
+        appendSymbol(tokenizer, "(");
+
+        //parameterList
+        compileParameterList();
+
+        //')'
+        tokenizer = advanceAndGet();
+        appendSymbol(tokenizer, ")");
+
+
+        append(getStartTag("subroutineBody"));
+        //varDec* statements
+        //'{'
+        tokenizer = advanceAndGet();
+        appendSymbol(tokenizer, "{");
+
+        while (true) {
+            tokenizer = jackTokenizer.getNextToken();
+            if (KeyWordType.VAR.equalsKey(tokenizer.getToken())) {
+                compileVarDec();
+                continue;
+            }
+            if ("}".equals(tokenizer.getToken())) {
+                tokenizer = advanceAndGet();
+                appendSymbol(tokenizer, "}");
+                break;
+            }
+            compileStatements();
+        }
+
+        //}
+        append(getEndTag("subroutineBody"));
+
+        append(getEndTag("subroutineDec"));
     }
+
 
     /**
      * ((type varName) (, type varName)*)?
      */
     public void compileParameterList() {
+        append(getStartTag("parameterList"));
+        JackTokenizer.Tokenizer tokenizer = advanceAndGet();
+        if (")".equals(tokenizer.getToken())) {
+            jackTokenizer.back();
+        } else {
+            if (!isTypeToken(tokenizer)) {
+                throwError(tokenizer, typeExpect);
+            }
+            appendTerminals(tokenizer);
+
+            tokenizer = advanceAndGet();
+            appendIdentifier(tokenizer);
+            while (true) {
+                if (",".equals(jackTokenizer.getNextToken().getToken())) {
+                    tokenizer = advanceAndGet();
+                    appendTerminals(tokenizer);
+
+                    tokenizer = advanceAndGet();
+                    if (!isTypeToken(tokenizer)) {
+                        throwError(tokenizer, typeExpect);
+                    }
+                    appendTerminals(tokenizer);
+
+                    tokenizer = advanceAndGet();
+                    appendIdentifier(tokenizer);
+                } else {
+                    break;
+                }
+            }
+        }
+        append(getEndTag("parameterList"));
     }
 
     /**
      * var type varName (, varName)* ;
      */
     public void compileVarDec() {
+        append(getStartTag("varDec"));
+        // var
+        JackTokenizer.Tokenizer tokenizer = advanceAndGet();
+        appendKeyword(tokenizer, KeyWordType.VAR);
+
+        // type
+        tokenizer = advanceAndGet();
+        appendType(tokenizer);
+
+        // varName
+        tokenizer = advanceAndGet();
+        appendIdentifier(tokenizer);
+
+        // (, varName)
+        while (",".equals(jackTokenizer.getNextToken().getToken())) {
+            tokenizer = advanceAndGet();
+            appendTerminals(tokenizer);
+            tokenizer = advanceAndGet();
+            appendIdentifier(tokenizer);
+        }
+
+        //;
+        tokenizer = advanceAndGet();
+        appendSymbol(tokenizer, ";");
+        append(getEndTag("varDec"));
     }
 
     /**
      * (letStatement|ifStatement|whileStatement|doStatement|returnStatement) *
      */
     public void compileStatements() {
+        append(getStartTag("statements"));
+        while (true) {
+            JackTokenizer.Tokenizer tokenizer = jackTokenizer.getNextToken();
+            KeyWordType keyWordType = KeyWordType.get(tokenizer.getToken());
+            if (null == keyWordType) {
+                throwError(tokenizer, statementExpect);
+            }
+            if ("}".equals(tokenizer.getToken())) {
+                break;
+            }
+            switch (keyWordType) {
+                case LET:
+                    compileLet();
+                    break;
+                case IF:
+                    compileIf();
+                    break;
+                case WHILE:
+                    compileWhile();
+                    break;
+                case DO:
+                    compileDo();
+                    break;
+                case RETURN:
+                    compileReturn();
+                    break;
+                default:
+                    throwError(tokenizer, statementExpect);
+            }
+        }
+        append(getEndTag("statements"));
     }
 
     /**
      * do subroutineCall;
      */
     public void compileDo() {
+        append(getStartTag("doStatement"));
+        JackTokenizer.Tokenizer tokenizer = jackTokenizer.getNextToken();
+        appendKeyword(tokenizer, KeyWordType.DO);
+        compileSubroutineCall();
+        tokenizer = jackTokenizer.getNextToken();
+        appendSymbol(tokenizer, ";");
+        append(getEndTag("doStatement"));
+    }
+
+    /**
+     * subroutineCall:subroutineName'('expressionList')' | (className | varName).subroutineName'('expressionList')'
+     */
+    public void compileSubroutineCall() {
+        // subroutineName | className | varName
+        JackTokenizer.Tokenizer tokenizer = advanceAndGet();
+        appendIdentifier(tokenizer);
+
+        tokenizer = advanceAndGet();
+        if ("(".equals(tokenizer.getToken())) {
+            appendSymbol(tokenizer, "(");
+            //expressionList
+            compileExpressionList();
+            tokenizer = advanceAndGet();
+            appendSymbol(tokenizer, ")");
+        } else if (".".equals(tokenizer.getToken())) {
+            appendSymbol(tokenizer, ".");
+            tokenizer = advanceAndGet();
+            //subroutineName
+            appendIdentifier(tokenizer);
+            tokenizer = advanceAndGet();
+            appendSymbol(tokenizer, "(");
+            //expressionList
+            compileExpressionList();
+            tokenizer = advanceAndGet();
+            appendSymbol(tokenizer, ")");
+        }
     }
 
     /**
      * let varName('['expression']')? = expression;
      */
     public void compileLet() {
+        append(getStartTag("letStatement"));
+        JackTokenizer.Tokenizer tokenizer = advanceAndGet();
+        appendKeyword(tokenizer, KeyWordType.LET);
+
+        tokenizer = advanceAndGet();
+        appendIdentifier(tokenizer);
+
+        tokenizer = advanceAndGet();
+        if (!"[".equals(tokenizer.getToken()) && !"=".equals(tokenizer.getToken())) {
+            throwError(tokenizer, "[ | =");
+        }
+        if ("[".equals(tokenizer.getToken())) {
+            appendSymbol(tokenizer, "[");
+            compileExpression();
+            tokenizer = advanceAndGet();
+            appendSymbol(tokenizer, "]");
+        }
+
+        tokenizer = advanceAndGet();
+        appendSymbol(tokenizer, "=");
+
+        compileExpression();
+
+        tokenizer = advanceAndGet();
+        appendSymbol(tokenizer, ";");
+
+        append(getEndTag("letStatement"));
     }
 
     /**
      * while '(' expression ')' { statements }
      */
     public void compileWhile() {
+        append(getStartTag("whileStatement"));
+        JackTokenizer.Tokenizer tokenizer = advanceAndGet();
+        appendKeyword(tokenizer, KeyWordType.WHILE);
+        tokenizer = advanceAndGet();
+        appendSymbol(tokenizer, "(");
+        compileExpression();
+        tokenizer = advanceAndGet();
+        appendSymbol(tokenizer, ")");
+        tokenizer = advanceAndGet();
+        appendSymbol(tokenizer, "{");
+        compileStatements();
+        tokenizer = advanceAndGet();
+        appendSymbol(tokenizer, "}");
+        append(getEndTag("whileStatement"));
     }
+
+    /**
+     * if'('expression')'{statements} (else { statements })?
+     */
+    public void compileIf() {
+        append(getStartTag("ifStatement"));
+        JackTokenizer.Tokenizer tokenizer = advanceAndGet();
+        appendKeyword(tokenizer, KeyWordType.IF);
+        tokenizer = advanceAndGet();
+        appendSymbol(tokenizer, "(");
+        compileExpression();
+        tokenizer = advanceAndGet();
+        appendSymbol(tokenizer, ")");
+        tokenizer = advanceAndGet();
+        appendSymbol(tokenizer, "{");
+        compileStatements();
+        tokenizer = advanceAndGet();
+        appendSymbol(tokenizer, "}");
+
+        JackTokenizer.Tokenizer nextToken = jackTokenizer.getNextToken();
+        if (KeyWordType.ELSE.equalsKey(nextToken.getToken())) {
+            tokenizer = advanceAndGet();
+            appendKeyword(tokenizer, KeyWordType.ELSE);
+            tokenizer = advanceAndGet();
+            appendSymbol(tokenizer, "{");
+            compileStatements();
+            tokenizer = advanceAndGet();
+            appendSymbol(tokenizer, "}");
+        }
+
+        append(getEndTag("ifStatement"));
+    }
+
 
     /**
      * return expression? ;
      */
     public void compileReturn() {
+        append(getStartTag("returnStatement"));
+        JackTokenizer.Tokenizer tokenizer = advanceAndGet();
+        appendKeyword(tokenizer, KeyWordType.RETURN);
+
+        if (";".equals(jackTokenizer.getNextToken().getToken())) {
+            tokenizer = advanceAndGet();
+            appendSymbol(tokenizer, ";");
+        } else {
+            compileExpression();
+            tokenizer = advanceAndGet();
+            appendSymbol(tokenizer, ";");
+        }
+        append(getEndTag("returnStatement"));
     }
 
-    /**
-     * if'('expression')'{statements}(else { statements })?
-     */
-    public void compileIf() {
-    }
 
     /**
      * term (op term)*
+     * op: + | - | * | / | & | `|` | < | > | =
      */
     public void compileExpression() {
+        append(getStartTag("expression"));
+        compileTerm();
+        while (true) {
+            JackTokenizer.Tokenizer nextToken = jackTokenizer.getNextToken();
+            if (JackConstant.OP_SYMBOL.contains(nextToken.getToken())) {
+                JackTokenizer.Tokenizer tokenizer = advanceAndGet();
+                appendOpSymbol(tokenizer);
+                compileTerm();
+            } else {
+                break;
+            }
+        }
+        append(getEndTag("expression"));
     }
 
     /**
@@ -141,19 +480,92 @@ public class CompilationEngine {
      * | '('expression')' | unaryOp term
      */
     public void compileTerm() {
+        append(getStartTag("term"));
+
+        JackTokenizer.Tokenizer tokenizer = advanceAndGet();
+
+        TokenType type = tokenizer.getType();
+
+        //integerConstant
+        if (TokenType.INT_CONST == type) {
+            appendTerminals(TokenType.INT_CONST.getKeyWord(), String.valueOf(tokenizer.getValue()));
+            return;
+        }
+
+        //stringConstant
+        if (TokenType.STRING_CONST == type) {
+            appendTerminals(TokenType.STRING_CONST.getKeyWord(), String.valueOf(tokenizer.getValue()));
+            return;
+        }
+
+        //keywordConstant
+        if (TokenType.KEYWORD == type) {
+            appendKeywordConstant(tokenizer);
+            return;
+        }
+
+        // varName | varName'['expression']' | subroutineCall
+        if (TokenType.IDENTIFIER == type) {
+            //subroutineCall
+            if ("(".equals(jackTokenizer.getNextToken().getToken())
+                    || ".".equals(jackTokenizer.getNextToken().getToken())) {
+                jackTokenizer.back();
+                compileSubroutineCall();
+                return;
+            }
+            //varName | varName'['expression']'
+            appendIdentifier(tokenizer);
+            if ("[".equals(jackTokenizer.getNextToken().getToken())) {
+                tokenizer = advanceAndGet();
+                appendSymbol(tokenizer, "[");
+                compileExpression();
+                tokenizer = advanceAndGet();
+                appendSymbol(tokenizer, "]");
+            }
+            return;
+        }
+
+        if (TokenType.SYMBOL == type) {
+            //'('expression')'
+            if ("(".equals(tokenizer.getToken())) {
+                appendSymbol(tokenizer, "(");
+                compileExpression();
+                tokenizer = advanceAndGet();
+                appendSymbol(tokenizer, ")");
+                return;
+            }
+            //unaryOp term
+            if (JackConstant.UNARYOP_SYMBOL.contains(tokenizer.getToken())) {
+                appendTerminals(tokenizer);
+                compileTerm();
+                return;
+            }
+            throwError(tokenizer, "( | - | ~");
+        }
+        append(getEndTag("term"));
     }
 
     /**
      * (expression (,expression)* )?
      */
     public void compileExpressionList() {
+        append(getStartTag("expressionList"));
+        if (!")".equals(jackTokenizer.getNextToken().getToken())) {
+            compileExpression();
+            while (true) {
+                if (",".equals(jackTokenizer.getNextToken().getToken())) {
+                    JackTokenizer.Tokenizer tokenizer = advanceAndGet();
+                    appendSymbol(tokenizer, ",");
+                    compileExpression();
+                } else {
+                    break;
+                }
+            }
+        }
+        append(getEndTag("expressionList"));
     }
 
-    //_error(key, val, type) {
-    //        let error = 'line:' + this.tokens[this.i].line + ' syntax error: {' + key + ': ' + val
-    //                  + '}\r\nExpect the type of key to be ' + type + '\r\nat ' + this.rawFile
-    //        throw error
-    //    }
+
     private void throwError(JackTokenizer.Tokenizer tk, String expect) {
         StringBuffer sb = new StringBuffer();
         sb.append("line:").append(tk.getOrgLine()).append("syntax error: {").append(tk.getType().getKeyWord())
@@ -177,4 +589,84 @@ public class CompilationEngine {
     private void append(String ap) {
         out.append(ap);
     }
+
+    private void appendTerminals(JackTokenizer.Tokenizer tokenizer) {
+        append(getTerminals(tokenizer.getType().getKeyWord(), tokenizer.getToken()));
+    }
+
+    private void appendTerminals(String key, String val) {
+        append(getStartTag(key));
+        append(val);
+        append(getEndTag(key));
+    }
+
+    private void appendIdentifier(JackTokenizer.Tokenizer tokenizer) {
+        if (tokenizer.getType() != TokenType.IDENTIFIER) {
+            throwError(tokenizer, "identifier");
+        }
+        appendTerminals(tokenizer);
+    }
+
+
+    private void appendKeywordConstant(JackTokenizer.Tokenizer tokenizer) {
+        if (!JackConstant.KEYWORD_CONSTANT.contains(tokenizer.getToken())) {
+            throwError(tokenizer, JackConstant.KEYWORD_CONSTANT.stream().collect(Collectors.joining(" | ")));
+        }
+        appendTerminals(tokenizer);
+    }
+
+    private void appendOpSymbol(JackTokenizer.Tokenizer tokenizer) {
+        if (!JackConstant.OP_SYMBOL.contains(tokenizer.getToken())) {
+            throwError(tokenizer, JackConstant.OP_SYMBOL.stream().collect(Collectors.joining(" | ")));
+        }
+        appendTerminals(tokenizer);
+    }
+
+    private void appendSymbol(JackTokenizer.Tokenizer tokenizer, String expect) {
+        if (!expect.equals(tokenizer.getToken())) {
+            throwError(tokenizer, expect);
+        }
+        appendTerminals(tokenizer);
+    }
+
+    private void appendKeyword(JackTokenizer.Tokenizer tokenizer, KeyWordType expect) {
+        if (expect.equalsKey(tokenizer.getToken())) {
+            throwError(tokenizer, expect.getKey());
+        }
+        appendTerminals(tokenizer);
+    }
+
+    private void appendType(JackTokenizer.Tokenizer tokenizer) {
+        if (!isTypeToken(tokenizer)) {
+            throwError(tokenizer, typeExpect);
+        }
+        appendTerminals(tokenizer);
+    }
+
+    //type int | boolean | char | className
+    private boolean isTypeToken(JackTokenizer.Tokenizer tokenizer) {
+        //className
+        boolean isIdentifier = tokenizer.getType() == TokenType.IDENTIFIER;
+        if (tokenizer.getType() != TokenType.KEYWORD) {
+            return isIdentifier;
+        }
+        //int | boolean | char
+        KeyWordType kt = KeyWordType.get(tokenizer.getToken());
+        return kt == KeyWordType.INT
+                || kt == KeyWordType.BOOLEAN
+                || kt == KeyWordType.CHAR
+                || isIdentifier;
+    }
+
+    //constructor|function|method
+    private boolean isMethodToken(JackTokenizer.Tokenizer tokenizer) {
+        if (tokenizer.getType() != TokenType.KEYWORD) {
+            return false;
+        }
+        KeyWordType kt = KeyWordType.get(tokenizer.getToken());
+        return kt == KeyWordType.FUNCTION
+                || kt == KeyWordType.CONSTRUCTOR
+                || kt == KeyWordType.METHOD;
+    }
+
 }

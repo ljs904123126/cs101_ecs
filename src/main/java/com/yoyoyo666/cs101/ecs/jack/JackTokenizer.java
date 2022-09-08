@@ -14,7 +14,8 @@ import java.util.stream.Collectors;
 public class JackTokenizer {
 
     private List<String> lines;
-    private LinkedList<Tokenizer> tokens;
+    private LinkedList<Tokenizer> tokensSq;
+    private int sqPointer = 0;
     private int currentLinePointer = 0;
     private Tokenizer preToken;
     private Tokenizer currentToken;
@@ -39,9 +40,8 @@ public class JackTokenizer {
     }
 
     protected void reset() {
-        lines = new ArrayList<>();
-        tokens = new LinkedList<>();
         currentLinePointer = 0;
+        sqPointer = 0;
         preToken = null;
         currentToken = null;
 
@@ -49,6 +49,8 @@ public class JackTokenizer {
 
 
     private void init() {
+        lines = new ArrayList<>();
+        tokensSq = new LinkedList<>();
         reset();
         try (FileInputStream inputStream = new FileInputStream(inputFile);
              InputStreamReader is = new InputStreamReader(inputStream);
@@ -72,15 +74,15 @@ public class JackTokenizer {
 
     //增加token
     private void pushToken(String token) {
-        tokens.add(Tokenizer.getInstance(token, currentLinePointer));
+        tokensSq.add(Tokenizer.getInstance(token, currentLinePointer));
 //        System.out.println(token);
     }
 
     private void lexicalAnalysis(String line) {
-        String[] split = line.split("");
+        String[] chars = line.split("");
         StringBuffer token = new StringBuffer();
-        for (int i = 0; i < split.length; i++) {
-            String s = split[i];
+        for (int i = 0; i < chars.length; i++) {
+            String s = chars[i];
             if (StringUtils.isBlank(s)) {
                 if (token.length() == 0) {
                     continue;
@@ -103,10 +105,10 @@ public class JackTokenizer {
                 token.append(s);
                 while (true) {
                     i++;
-                    if (i >= split.length) {
+                    if (i >= chars.length) {
                         throw new RuntimeException("string const error:" + currentLinePointer);
                     }
-                    String _s = split[i];
+                    String _s = chars[i];
                     token.append(_s);
                     if ("\"".equals(_s)) {
                         break;
@@ -142,7 +144,7 @@ public class JackTokenizer {
     }
 
     public boolean hasMoreTokens() {
-        return !tokens.isEmpty();
+        return sqPointer < tokensSq.size();
     }
 
     public void advance() {
@@ -150,19 +152,33 @@ public class JackTokenizer {
             throw new RuntimeException("is not have token");
         }
         preToken = currentToken;
-        currentToken = tokens.poll();
+        currentToken = tokensSq.get(sqPointer);
         nextToken = null;
-        if (!tokens.isEmpty()) {
-            nextToken = tokens.get(0);
+        sqPointer++;
+        if (sqPointer < tokensSq.size()) {
+            nextToken = tokensSq.get(sqPointer);
         }
     }
 
-    public TokenTypeEnum tokenType() {
+    public void back() {
+        if (sqPointer <= 0) {
+            return;
+        }
+        sqPointer--;
+        nextToken = currentToken;
+        currentToken = tokensSq.get(sqPointer);
+        preToken = null;
+        if (sqPointer - 1 >= 0) {
+            preToken = tokensSq.get(sqPointer - 1);
+        }
+    }
+
+    public TokenType tokenType() {
         return currentToken.getType();
     }
 
-    public KeyWordTypeEnum keyWord() {
-        return (KeyWordTypeEnum) currentToken.getValue();
+    public KeyWordType keyWord() {
+        return (KeyWordType) currentToken.getValue();
     }
 
     public String symbol() {
@@ -201,7 +217,7 @@ public class JackTokenizer {
     @Override
     public String toString() {
 
-        init();
+        reset();
         StringBuffer bf = new StringBuffer("<tokens>\n");
         while (this.hasMoreTokens()) {
             this.advance();
@@ -213,14 +229,14 @@ public class JackTokenizer {
             bf.append("\n");
         }
         bf.append("</tokens>");
-        init();
+        reset();
         return bf.toString();
     }
 
     public static class Tokenizer {
 
         private String token;
-        private TokenTypeEnum type;
+        private TokenType type;
         private Object value;
         private Integer orgLine;
 
@@ -231,28 +247,28 @@ public class JackTokenizer {
         private Tokenizer(String token, Integer line) {
             this.token = token;
             this.orgLine = line;
-            KeyWordTypeEnum keyWordTypeEnum = KeyWordTypeEnum.get(token);
-            if (Objects.nonNull(keyWordTypeEnum)) {
-                type = TokenTypeEnum.KEYWORD;
-                value = keyWordTypeEnum;
+            KeyWordType keyWordType = KeyWordType.get(token);
+            if (Objects.nonNull(keyWordType)) {
+                type = TokenType.KEYWORD;
+                value = keyWordType;
                 return;
             }
             if (JackConstant.SYMBOL.contains(token)) {
-                type = TokenTypeEnum.SYMBOL;
+                type = TokenType.SYMBOL;
                 value = token;
                 return;
             }
             if (integerConstPattern.matcher(token).matches()) {
-                type = TokenTypeEnum.INT_CONST;
+                type = TokenType.INT_CONST;
                 value = Integer.parseInt(token);
                 return;
             }
             if (stringConstPattern.matcher(token).matches()) {
-                type = TokenTypeEnum.STRING_CONST;
+                type = TokenType.STRING_CONST;
                 value = token.substring(1, token.length() - 1);
                 return;
             }
-            type = TokenTypeEnum.IDENTIFIER;
+            type = TokenType.IDENTIFIER;
             value = token;
         }
 
@@ -260,7 +276,7 @@ public class JackTokenizer {
             return token;
         }
 
-        public TokenTypeEnum getType() {
+        public TokenType getType() {
             return type;
         }
 
