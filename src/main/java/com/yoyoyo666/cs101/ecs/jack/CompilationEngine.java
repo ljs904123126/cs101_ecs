@@ -372,6 +372,7 @@ public class CompilationEngine {
             compileExpression();
             tokenizer = advanceAndGet();
             appendSymbol(tokenizer, "]");
+            tokenizer = advanceAndGet();
         }
 
 //        tokenizer = advanceAndGet();
@@ -629,12 +630,36 @@ public class CompilationEngine {
         if (!JackConstant.OP_SYMBOL.contains(tokenizer.getToken())) {
             throwError(tokenizer, JackConstant.OP_SYMBOL.stream().collect(Collectors.joining(" | ")));
         }
+        if ("<".equals(tokenizer.getToken())) {
+            appendTerminals(tokenizer.getType().getKeyWord(), "&lt;");
+            return;
+        }
+        if (">".equals(tokenizer.getToken())) {
+            appendTerminals(tokenizer.getType().getKeyWord(), "&gt;");
+            return;
+        }
+        if ("&".equals(tokenizer.getToken())) {
+            appendTerminals(tokenizer.getType().getKeyWord(), "&amp;");
+            return;
+        }
         appendTerminals(tokenizer);
     }
 
     private void appendSymbol(JackTokenizer.Tokenizer tokenizer, String expect) {
         if (!expect.equals(tokenizer.getToken())) {
             throwError(tokenizer, expect);
+        }
+        if ("<".equals(tokenizer.getToken())) {
+            appendTerminals(tokenizer.getType().getKeyWord(), "&lt;");
+            return;
+        }
+        if (">".equals(tokenizer.getToken())) {
+            appendTerminals(tokenizer.getType().getKeyWord(), "&gt;");
+            return;
+        }
+        if ("&".equals(tokenizer.getToken())) {
+            appendTerminals(tokenizer.getType().getKeyWord(), "&amp;");
+            return;
         }
         appendTerminals(tokenizer);
     }

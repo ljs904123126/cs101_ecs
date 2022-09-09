@@ -28,5 +28,33 @@ public class CompilationEngineTest extends BaseTestCase {
         System.out.println(path);
         System.out.println(compilationEngine.getResult());
 
+        path = "10/ArrayTest/Main.jack";
+        file = getFile(path);
+        compilationEngine = new CompilationEngine();
+        compilationEngine.constructor(file, new File("D:/test.xml"));
+        System.out.println(path);
+        System.out.println(compilationEngine.getResult());
+
+        path = "10/Square/Main.jack";
+        file = getFile(path);
+        compilationEngine = new CompilationEngine();
+        compilationEngine.constructor(file, new File("D:/test.xml"));
+        System.out.println(path);
+        System.out.println(compilationEngine.getResult());
+
+        path = "10/Square/Square.jack";
+        file = getFile(path);
+        compilationEngine = new CompilationEngine();
+        compilationEngine.constructor(file, new File("D:/test.xml"));
+        System.out.println(path);
+        System.out.println(compilationEngine.getResult());
+
+        path = "10/Square/SquareGame.jack";
+        file = getFile(path);
+        compilationEngine = new CompilationEngine();
+        compilationEngine.constructor(file, new File("D:/test.xml"));
+        System.out.println(path);
+        System.out.println(compilationEngine.getResult());
+
     }
 }
