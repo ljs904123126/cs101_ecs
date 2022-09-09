@@ -24,6 +24,7 @@ public class CompilationEngine {
     public void constructor(File inputFile, File outputFile) {
         jackTokenizer = new JackTokenizer();
         jackTokenizer.constructor(inputFile);
+        out = new StringBuffer();
         compileClass();
     }
 
@@ -154,7 +155,7 @@ public class CompilationEngine {
 
         // (type|void)
         tokenizer = advanceAndGet();
-        if (!isTypeToken(tokenizer) || !tokenizer.getToken().equals("void")) {
+        if (!isTypeToken(tokenizer) && !tokenizer.getToken().equals("void")) {
             throwError(tokenizer, typeExpect + " | void");
         }
         appendTerminals(tokenizer);
@@ -278,12 +279,14 @@ public class CompilationEngine {
         while (true) {
             JackTokenizer.Tokenizer tokenizer = jackTokenizer.getNextToken();
             KeyWordType keyWordType = KeyWordType.get(tokenizer.getToken());
-            if (null == keyWordType) {
-                throwError(tokenizer, statementExpect);
-            }
             if ("}".equals(tokenizer.getToken())) {
                 break;
             }
+
+            if (null == keyWordType) {
+                throwError(tokenizer, statementExpect);
+            }
+
             switch (keyWordType) {
                 case LET:
                     compileLet();
@@ -312,10 +315,10 @@ public class CompilationEngine {
      */
     public void compileDo() {
         append(getStartTag("doStatement"));
-        JackTokenizer.Tokenizer tokenizer = jackTokenizer.getNextToken();
+        JackTokenizer.Tokenizer tokenizer = advanceAndGet();
         appendKeyword(tokenizer, KeyWordType.DO);
         compileSubroutineCall();
-        tokenizer = jackTokenizer.getNextToken();
+        tokenizer = advanceAndGet();
         appendSymbol(tokenizer, ";");
         append(getEndTag("doStatement"));
     }
@@ -371,7 +374,7 @@ public class CompilationEngine {
             appendSymbol(tokenizer, "]");
         }
 
-        tokenizer = advanceAndGet();
+//        tokenizer = advanceAndGet();
         appendSymbol(tokenizer, "=");
 
         compileExpression();
@@ -489,18 +492,21 @@ public class CompilationEngine {
         //integerConstant
         if (TokenType.INT_CONST == type) {
             appendTerminals(TokenType.INT_CONST.getKeyWord(), String.valueOf(tokenizer.getValue()));
+            append(getEndTag("term"));
             return;
         }
 
         //stringConstant
         if (TokenType.STRING_CONST == type) {
             appendTerminals(TokenType.STRING_CONST.getKeyWord(), String.valueOf(tokenizer.getValue()));
+            append(getEndTag("term"));
             return;
         }
 
         //keywordConstant
         if (TokenType.KEYWORD == type) {
             appendKeywordConstant(tokenizer);
+            append(getEndTag("term"));
             return;
         }
 
@@ -511,6 +517,7 @@ public class CompilationEngine {
                     || ".".equals(jackTokenizer.getNextToken().getToken())) {
                 jackTokenizer.back();
                 compileSubroutineCall();
+                append(getEndTag("term"));
                 return;
             }
             //varName | varName'['expression']'
@@ -522,6 +529,7 @@ public class CompilationEngine {
                 tokenizer = advanceAndGet();
                 appendSymbol(tokenizer, "]");
             }
+            append(getEndTag("term"));
             return;
         }
 
@@ -532,12 +540,14 @@ public class CompilationEngine {
                 compileExpression();
                 tokenizer = advanceAndGet();
                 appendSymbol(tokenizer, ")");
+                append(getEndTag("term"));
                 return;
             }
             //unaryOp term
             if (JackConstant.UNARYOP_SYMBOL.contains(tokenizer.getToken())) {
                 appendTerminals(tokenizer);
                 compileTerm();
+                append(getEndTag("term"));
                 return;
             }
             throwError(tokenizer, "( | - | ~");
@@ -630,7 +640,7 @@ public class CompilationEngine {
     }
 
     private void appendKeyword(JackTokenizer.Tokenizer tokenizer, KeyWordType expect) {
-        if (expect.equalsKey(tokenizer.getToken())) {
+        if (!expect.equalsKey(tokenizer.getToken())) {
             throwError(tokenizer, expect.getKey());
         }
         appendTerminals(tokenizer);
@@ -669,4 +679,12 @@ public class CompilationEngine {
                 || kt == KeyWordType.METHOD;
     }
 
+
+    public String getResult() {
+        return out.toString();
+    }
+
+    public void writeResult() {
+
+    }
 }

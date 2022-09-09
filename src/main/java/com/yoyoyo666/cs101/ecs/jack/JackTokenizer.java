@@ -214,8 +214,7 @@ public class JackTokenizer {
         return nextToken;
     }
 
-    @Override
-    public String toString() {
+    public String getResult() {
 
         reset();
         StringBuffer bf = new StringBuffer("<tokens>\n");
@@ -286,6 +285,16 @@ public class JackTokenizer {
 
         public Integer getOrgLine() {
             return orgLine;
+        }
+
+        @Override
+        public String toString() {
+            return "Tokenizer{" +
+                    "token='" + token + '\'' +
+                    ", type=" + type +
+                    ", value=" + value +
+                    ", orgLine=" + orgLine +
+                    '}';
         }
     }
 
