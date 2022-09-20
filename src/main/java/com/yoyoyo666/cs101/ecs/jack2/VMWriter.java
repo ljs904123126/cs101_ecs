@@ -66,8 +66,15 @@ public class VMWriter {
         vmCode.add("return");
     }
 
+    public void writeComments(String comments) {
+        vmCode.add(comments);
+    }
+
     public void close() {
         try {
+            if (outFile.exists()) {
+                outFile.createNewFile();
+            }
             FileUtils.writeLines(outFile, vmCode);
         } catch (IOException e) {
             e.printStackTrace();

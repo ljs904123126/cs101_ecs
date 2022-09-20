@@ -50,6 +50,8 @@ public class CompilationEngine {
         jackTokenizer.constructor(inputFile);
         out = new StringBuffer();
         compileClass();
+        vmWriter.close();
+
     }
 
 
@@ -104,6 +106,7 @@ public class CompilationEngine {
                             case FUNCTION:
                             case METHOD:
                                 compileSubroutine();
+//                                vmWriter.writeComments(subRoutineSymbolTable.getStringTable());
                                 break;
                             default:
                                 throwError(nextToken, "static | field | constructor | method");
@@ -117,6 +120,7 @@ public class CompilationEngine {
                 throwError(tokenizer, TokenType.IDENTIFIER.getKeyWord());
             }
             append(getEndTag(KeyWordType.CLASS.getKey()));
+//            vmWriter.writeComments(mainSymbolTable.getStringTable());
         } else {
             throwError(tokenizer, KeyWordType.CLASS.getKey());
         }
@@ -212,6 +216,10 @@ public class CompilationEngine {
         tokenizer = advanceAndGet();
         appendSymbol(tokenizer, "(");
 
+        if ("method".equals(currentSubroutineType)) {
+            subRoutineSymbolTable.define("this", className, FieldType.ARG);
+        }
+
         //parameterList
         int argCnt = compileParameterList();
 
@@ -226,36 +234,32 @@ public class CompilationEngine {
         tokenizer = advanceAndGet();
         appendSymbol(tokenizer, "{");
 
-        int localCnt = 0;
-        boolean varOver = false;
-        // TODO: 2022/9/14  split var dec and statements ,and count var num, vm write function
-        while (true) {
-            tokenizer = jackTokenizer.getNextToken();
-            if (KeyWordType.VAR.equalsKey(tokenizer.getToken())) {
-                if (varOver) {
-                    throw new RuntimeException("Variable declarations must precede statement declarations");
-                }
-                compileVarDec();
-                localCnt++;
-                continue;
-            }
-            if (!varOver) {
-                varOver = true;
-                if ("method".equals(currentSubroutineType)) {
-                    localCnt++;
-                }
-                vmWriter.writeFunction(subroutineName, localCnt);
-            }
 
-            if ("}".equals(tokenizer.getToken())) {
-                tokenizer = advanceAndGet();
-                appendSymbol(tokenizer, "}");
-                break;
-            }
-            compileStatements();
+
+        // varDec
+        while (KeyWordType.VAR.equalsKey(jackTokenizer.getNextToken().getToken())) {
+            compileVarDec();
         }
 
-        //}
+        // write functionName nLocal
+        vmWriter.writeFunction(getFunName(className, subroutineName), subRoutineSymbolTable.varCount(FieldType.VAR));
+
+        if ("method".equals(currentSubroutineType)) {
+            //如果是成员方法
+            vmWriter.writePush(VMSegmentType.S_ARG, 0);
+            vmWriter.writePop(VMSegmentType.S_PTR, 0);
+        }
+        if ("constructor".equals(currentSubroutineType)) {
+            //如果是构造函数申请内存
+            int fieldCount = mainSymbolTable.varCount(FieldType.FIELD);
+            vmWriter.writePush(VMSegmentType.S_CONST, fieldCount);
+            vmWriter.writeCall("Memory.alloc", 1);
+            vmWriter.writePop(VMSegmentType.S_PTR, 0);
+        }
+        compileStatements();
+        tokenizer = advanceAndGet();
+        appendSymbol(tokenizer, "}");
+
         append(getEndTag("subroutineBody"));
 
         append(getEndTag("subroutineDec"));
@@ -312,13 +316,15 @@ public class CompilationEngine {
 
     /**
      * var type varName (, varName)* ;
+     * return int
      */
-    public void compileVarDec() {
+    public int compileVarDec() {
         append(getStartTag("varDec"));
         // var
         JackTokenizer.Tokenizer tokenizer = advanceAndGet();
         appendKeyword(tokenizer, KeyWordType.VAR);
 
+        int varCnt = 1;
         // type
         tokenizer = advanceAndGet();
         String fieldTypeName = tokenizer.getToken();
@@ -337,12 +343,14 @@ public class CompilationEngine {
             tokenizer = advanceAndGet();
             subRoutineSymbolTable.define(tokenizer.getToken(), fieldTypeName, FieldType.VAR);
             appendIdentifier(tokenizer);
+            varCnt++;
         }
 
         //;
         tokenizer = advanceAndGet();
         appendSymbol(tokenizer, ";");
         append(getEndTag("varDec"));
+        return varCnt;
     }
 
     /**
@@ -412,10 +420,12 @@ public class CompilationEngine {
 
         tokenizer = advanceAndGet();
         if ("(".equals(tokenizer.getToken())) {
+            // method call
             appendSymbol(tokenizer, "(");
             vmWriter.writePush(VMSegmentType.S_PTR, 0);
             //expressionList
             argCnt = compileExpressionList();
+            // add 0 this number
             argCnt++;
             vmWriter.writeCall(getFunName(className, subroutineName), argCnt);
             tokenizer = advanceAndGet();
@@ -435,10 +445,12 @@ public class CompilationEngine {
 
             //expressionList
             if (subEntity == null && mainEntity == null) {
-                //if don't have the classNameOrVarName is className;
+                //if don't have the static field var , the key  is className;
+                // this method is function
                 argCnt = compileExpressionList();
                 vmWriter.writeCall(getFunName(classNameOrVarName, subroutineName), argCnt);
             } else {
+                // this is method of that local or var object
                 if (subEntity != null) {
                     //push local index(target this)
                     vmWriter.writePush(VMSegmentType.S_LCL, subEntity.getIndex());
@@ -466,7 +478,7 @@ public class CompilationEngine {
         if (null == symbolEntity) {
             symbolEntity = mainSymbolTable.get(val);
             if (null == symbolEntity) {
-                throw new RuntimeException("unkown the variable");
+                throwCompileError("unkown the variable");
             }
             FieldType fieldType = symbolEntity.getFieldType();
             if (isPop) {
@@ -496,7 +508,6 @@ public class CompilationEngine {
         tokenizer = advanceAndGet();
         String varName = tokenizer.getToken();
         appendIdentifier(tokenizer);
-        writeVariable(varName, false);
 
         tokenizer = advanceAndGet();
         if (!"[".equals(tokenizer.getToken()) && !"=".equals(tokenizer.getToken())) {
@@ -504,94 +515,27 @@ public class CompilationEngine {
         }
 
         if ("[".equals(tokenizer.getToken())) {
+            // array
             appendSymbol(tokenizer, "[");
             compileExpression();
+            writeVariable(varName, false);
             vmWriter.writeArithmetic(VMArithmeticType.ADD);
-            // TODO: 2022/9/15
             tokenizer = advanceAndGet();
             appendSymbol(tokenizer, "]");
             tokenizer = advanceAndGet();
             appendSymbol(tokenizer, "=");
             compileExpression();
             //cache expression result
-            vmWriter.writePop(VMSegmentType.S_TEMP, 1);
+            vmWriter.writePop(VMSegmentType.S_TEMP, 0);
             vmWriter.writePop(VMSegmentType.S_PTR, 1);
-            vmWriter.writePush(VMSegmentType.S_TEMP, 1);
+            vmWriter.writePush(VMSegmentType.S_TEMP, 0);
             vmWriter.writePop(VMSegmentType.S_THAT, 0);
         } else {
-            tokenizer = advanceAndGet();
+//            tokenizer = advanceAndGet();
             appendSymbol(tokenizer, "=");
             compileExpression();
-            // TODO: 2022/9/16  
-//            vmWriter.writePop(VMSegmentType.S_LCL, symbolEntity.getIndex());
+            writeVariable(varName, true);
         }
-
-        // TODO: 2022/9/15 unComplete
-        //field static var
-        //对于变量的赋值 要区分是本地变量还是全局变量，
-        //如果是全局变量，还需要区分是static还是field，
-        if (subRoutineSymbolTable.has(varName)) {
-            SymbolTabel.SymbolEntity symbolEntity = subRoutineSymbolTable.get(varName);
-            if ("[".equals(jackTokenizer.getNextToken().getToken())) {
-                vmWriter.writePush(VMSegmentType.S_LCL, symbolEntity.getIndex());
-                appendSymbol(tokenizer, "[");
-                compileExpression();
-                vmWriter.writeArithmetic(VMArithmeticType.ADD);
-                // TODO: 2022/9/15
-                tokenizer = advanceAndGet();
-                appendSymbol(tokenizer, "]");
-                tokenizer = advanceAndGet();
-                appendSymbol(tokenizer, "=");
-                compileExpression();
-                //cache expression result
-                vmWriter.writePop(VMSegmentType.S_TEMP, 1);
-                vmWriter.writePop(VMSegmentType.S_PTR, 1);
-                vmWriter.writePush(VMSegmentType.S_TEMP, 1);
-                vmWriter.writePop(VMSegmentType.S_THAT, 0);
-            } else {
-                tokenizer = advanceAndGet();
-                appendSymbol(tokenizer, "=");
-                compileExpression();
-                vmWriter.writePop(VMSegmentType.S_LCL, symbolEntity.getIndex());
-            }
-
-        } else if (mainSymbolTable.has(varName)) {
-            SymbolTabel.SymbolEntity symbolEntity = subRoutineSymbolTable.get(varName);
-            if ("[".equals(jackTokenizer.getNextToken().getToken())) {
-                vmWriter.writePush(VMSegmentType.S_LCL, symbolEntity.getIndex());
-                appendSymbol(tokenizer, "[");
-                compileExpression();
-                vmWriter.writeArithmetic(VMArithmeticType.ADD);
-                // TODO: 2022/9/15
-                tokenizer = advanceAndGet();
-                appendSymbol(tokenizer, "]");
-                tokenizer = advanceAndGet();
-                appendSymbol(tokenizer, "=");
-                compileExpression();
-                //cache expression result
-                vmWriter.writePop(VMSegmentType.S_TEMP, 1);
-                vmWriter.writePop(VMSegmentType.S_PTR, 1);
-                vmWriter.writePush(VMSegmentType.S_TEMP, 1);
-                vmWriter.writePop(VMSegmentType.S_THAT, 0);
-            } else {
-                tokenizer = advanceAndGet();
-                appendSymbol(tokenizer, "=");
-                compileExpression();
-                vmWriter.writePop(VMSegmentType.S_LCL, symbolEntity.getIndex());
-            }
-
-        }
-//        if ("[".equals(tokenizer.getToken())) {
-//            appendSymbol(tokenizer, "[");
-//            compileExpression();
-//            tokenizer = advanceAndGet();
-//            appendSymbol(tokenizer, "]");
-//            tokenizer = advanceAndGet();
-//        }
-//
-//        appendSymbol(tokenizer, "=");
-//
-//        compileExpression();
 
         tokenizer = advanceAndGet();
         appendSymbol(tokenizer, ";");
@@ -599,44 +543,74 @@ public class CompilationEngine {
         append(getEndTag("letStatement"));
     }
 
+    int whileIndex = 0;
+    String whileStartLabl = "WHILE_EXP";
+    String whileEndLabl = "WHILE_END";
+
     /**
      * while '(' expression ')' { statements }
      */
     public void compileWhile() {
+        int thisWhileIndex = whileIndex;
+        whileIndex++;
         append(getStartTag("whileStatement"));
         JackTokenizer.Tokenizer tokenizer = advanceAndGet();
         appendKeyword(tokenizer, KeyWordType.WHILE);
         tokenizer = advanceAndGet();
         appendSymbol(tokenizer, "(");
+
+        vmWriter.writeLabel(whileStartLabl + thisWhileIndex);
         compileExpression();
+        vmWriter.writeArithmetic(VMArithmeticType.NOT);
+        vmWriter.writeIf(whileEndLabl + thisWhileIndex);
         tokenizer = advanceAndGet();
         appendSymbol(tokenizer, ")");
         tokenizer = advanceAndGet();
         appendSymbol(tokenizer, "{");
         compileStatements();
+        vmWriter.writeGoto(whileStartLabl + thisWhileIndex);
+        vmWriter.writeLabel(whileEndLabl + thisWhileIndex);
         tokenizer = advanceAndGet();
         appendSymbol(tokenizer, "}");
         append(getEndTag("whileStatement"));
     }
 
+
+    int ifIndex = 0;
+    String ifFalseLabl = "IF_FALSE";
+    String ifEndLabl = "IF_END";
+
     /**
      * if'('expression')'{statements} (else { statements })?
+     * cond
+     * not
+     * if-got lable-false
+     * xxx
+     * goto lable-end
+     * label lable-false
+     * xxxx
+     * lable lable-end
      */
     public void compileIf() {
+        int thisIfIndex = ifIndex;
+        ifIndex++;
         append(getStartTag("ifStatement"));
         JackTokenizer.Tokenizer tokenizer = advanceAndGet();
         appendKeyword(tokenizer, KeyWordType.IF);
         tokenizer = advanceAndGet();
         appendSymbol(tokenizer, "(");
         compileExpression();
+        vmWriter.writeArithmetic(VMArithmeticType.NOT);
+        vmWriter.writeIf(ifFalseLabl + thisIfIndex);
         tokenizer = advanceAndGet();
         appendSymbol(tokenizer, ")");
         tokenizer = advanceAndGet();
         appendSymbol(tokenizer, "{");
         compileStatements();
+        vmWriter.writeGoto(ifEndLabl + thisIfIndex);
         tokenizer = advanceAndGet();
         appendSymbol(tokenizer, "}");
-
+        vmWriter.writeLabel(ifFalseLabl + thisIfIndex);
         JackTokenizer.Tokenizer nextToken = jackTokenizer.getNextToken();
         if (KeyWordType.ELSE.equalsKey(nextToken.getToken())) {
             tokenizer = advanceAndGet();
@@ -647,7 +621,7 @@ public class CompilationEngine {
             tokenizer = advanceAndGet();
             appendSymbol(tokenizer, "}");
         }
-
+        vmWriter.writeLabel(ifEndLabl + thisIfIndex);
         append(getEndTag("ifStatement"));
     }
 
@@ -663,10 +637,13 @@ public class CompilationEngine {
         if (";".equals(jackTokenizer.getNextToken().getToken())) {
             tokenizer = advanceAndGet();
             appendSymbol(tokenizer, ";");
+            vmWriter.writePush(VMSegmentType.S_CONST, 0);
+            vmWriter.writeReturn();
         } else {
             compileExpression();
             tokenizer = advanceAndGet();
             appendSymbol(tokenizer, ";");
+            vmWriter.writeReturn();
         }
         append(getEndTag("returnStatement"));
     }
@@ -685,6 +662,38 @@ public class CompilationEngine {
                 JackTokenizer.Tokenizer tokenizer = advanceAndGet();
                 appendOpSymbol(tokenizer);
                 compileTerm();
+                String symbol = tokenizer.getToken();
+                switch (symbol) {
+                    case "+":
+                        vmWriter.writeArithmetic(VMArithmeticType.ADD);
+                        break;
+                    case "-":
+                        vmWriter.writeArithmetic(VMArithmeticType.SUB);
+                        break;
+                    case "*":
+                        vmWriter.writeCall("Math.multiply", 2);
+                        break;
+                    case "/":
+                        vmWriter.writeCall("Math.divide", 2);
+                        break;
+                    case "&":
+                        vmWriter.writeArithmetic(VMArithmeticType.AND);
+                        break;
+                    case "|":
+                        vmWriter.writeArithmetic(VMArithmeticType.OR);
+                        break;
+                    case ">":
+                        vmWriter.writeArithmetic(VMArithmeticType.GT);
+                        break;
+                    case "<":
+                        vmWriter.writeArithmetic(VMArithmeticType.LT);
+                        break;
+                    case "=":
+                        vmWriter.writeArithmetic(VMArithmeticType.EQ);
+                        break;
+                    default:
+                        throwCompileError("error symbol");
+                }
             } else {
                 break;
             }
@@ -707,25 +716,50 @@ public class CompilationEngine {
         if (TokenType.INT_CONST == type) {
             appendTerminals(TokenType.INT_CONST.getKeyWord(), String.valueOf(tokenizer.getValue()));
             append(getEndTag("term"));
+            vmWriter.writePush(VMSegmentType.S_CONST, Integer.parseInt(tokenizer.getToken()));
             return;
         }
 
         //stringConstant
         if (TokenType.STRING_CONST == type) {
-            appendTerminals(TokenType.STRING_CONST.getKeyWord(), String.valueOf(tokenizer.getValue()));
+            String val = String.valueOf(tokenizer.getValue());
+            appendTerminals(TokenType.STRING_CONST.getKeyWord(), val);
+            vmWriter.writePush(VMSegmentType.S_CONST, val.length());
+            vmWriter.writeCall("String.new", 1);
+            for (char c : val.toCharArray()) {
+                vmWriter.writePush(VMSegmentType.S_CONST, c);
+                vmWriter.writeCall("String.appendChar", 2);
+            }
             append(getEndTag("term"));
             return;
         }
 
-        //keywordConstant
+        //keywordConstant : true | false | null | this
         if (TokenType.KEYWORD == type) {
             appendKeywordConstant(tokenizer);
             append(getEndTag("term"));
+            switch (KeyWordType.get(tokenizer.getToken())) {
+                case THIS:
+                    vmWriter.writePush(VMSegmentType.S_PTR, 0);
+                    break;
+                case NULL:
+                case FALSE:
+                    vmWriter.writePush(VMSegmentType.S_CONST, 0);
+                    break;
+                case TRUE:
+                    vmWriter.writePush(VMSegmentType.S_CONST, 0);
+                    vmWriter.writeArithmetic(VMArithmeticType.NOT);
+                    break;
+                default:
+                    //上面已经处理了
+                    break;
+            }
             return;
         }
 
         // varName | varName'['expression']' | subroutineCall
         if (TokenType.IDENTIFIER == type) {
+
             //subroutineCall
             if ("(".equals(jackTokenizer.getNextToken().getToken())
                     || ".".equals(jackTokenizer.getNextToken().getToken())) {
@@ -734,15 +768,28 @@ public class CompilationEngine {
                 append(getEndTag("term"));
                 return;
             }
-            //varName | varName'['expression']'
+
             appendIdentifier(tokenizer);
+
+            //varName'['expression']'
             if ("[".equals(jackTokenizer.getNextToken().getToken())) {
+                String varName = tokenizer.getToken();
                 tokenizer = advanceAndGet();
                 appendSymbol(tokenizer, "[");
                 compileExpression();
+                writeVariable(varName, false);
+                vmWriter.writeArithmetic(VMArithmeticType.ADD);
+                //set that is (array addr + index)
+                vmWriter.writePop(VMSegmentType.S_PTR, 1);
+                //push that 0
+                vmWriter.writePush(VMSegmentType.S_THAT, 0);
                 tokenizer = advanceAndGet();
                 appendSymbol(tokenizer, "]");
+            } else {
+                //varName |
+                writeVariable(tokenizer.getToken(), false);
             }
+
             append(getEndTag("term"));
             return;
         }
@@ -761,6 +808,12 @@ public class CompilationEngine {
             if (JackConstant.UNARYOP_SYMBOL.contains(tokenizer.getToken())) {
                 appendTerminals(tokenizer);
                 compileTerm();
+                if ("-".equals(tokenizer.getToken())) {
+                    vmWriter.writeArithmetic(VMArithmeticType.NEG);
+                }
+                if ("~".equals(tokenizer.getToken())) {
+                    vmWriter.writeArithmetic(VMArithmeticType.NOT);
+                }
                 append(getEndTag("term"));
                 return;
             }
@@ -773,7 +826,6 @@ public class CompilationEngine {
      * (expression (,expression)* )?
      * return expression number
      */
-    // TODO: 2022/9/15 push expression result
     public int compileExpressionList() {
         int eNum = 0;
         append(getStartTag("expressionList"));
@@ -802,6 +854,18 @@ public class CompilationEngine {
                 .append(":").append(tk.getToken()).append("}\r\nExpect the type of str to be ").append(expect)
                 .append(" in file").append(jackTokenizer.getInputFilePath());
         throw new RuntimeException(sb.toString());
+    }
+
+    private void throwCompileError(JackTokenizer.Tokenizer tk, String info) {
+        StringBuffer sb = new StringBuffer();
+        sb.append("line:").append(tk.getOrgLine()).append("compile error: {").append(tk.getType().getKeyWord())
+                .append(":").append(tk.getToken()).append("} ").append(info)
+                .append(" in file").append(jackTokenizer.getInputFilePath());
+        throw new RuntimeException(sb.toString());
+    }
+
+    private void throwCompileError(String info) {
+        this.throwCompileError(jackTokenizer.getCurrentToken(), info);
     }
 
     private String getStartTag(String key) {

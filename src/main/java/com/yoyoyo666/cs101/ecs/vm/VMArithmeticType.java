@@ -7,7 +7,8 @@ public enum VMArithmeticType {
     // ['add', 'sub', 'neg', 'eq', 'gt', 'lt', 'and', 'or', 'not']
     ADD("add", "+"),
     SUB("sub", "-"),
-    NEG("neg", ""),
+    // 算数求反
+    NEG("neg", "-"),
     EQ("eq", "="),
     GT("gt", ">"),
     LT("lt", "<"),

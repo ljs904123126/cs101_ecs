@@ -3,6 +3,7 @@ package com.yoyoyo666.cs101.ecs.jack2;
 import de.vandermeer.asciitable.AsciiTable;
 
 import java.util.*;
+import java.util.stream.Collectors;
 
 public class SymbolTabel {
 
@@ -18,7 +19,7 @@ public class SymbolTabel {
         return new SymbolTabel();
     }
 
-    public void print() {
+    public String getStringTable() {
         AsciiTable at = new AsciiTable();
         at.addRule();
         at.addRow("name", "typeName", "fieldType", "index");
@@ -29,7 +30,12 @@ public class SymbolTabel {
             at.setPaddingLeft(2);
             at.addRule();
         });
-        System.out.println(at.render());
+        String collect = Arrays.stream(at.render().split("\n")).collect(Collectors.joining("\n//"));
+        return "//" + collect;
+    }
+
+    public void print() {
+        System.out.println(getStringTable());
     }
 
     public SymbolTabel() {
